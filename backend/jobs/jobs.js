@@ -1,328 +1,166 @@
 const express = require("express");
-const fs = require("fs");
-const xml2js = require("xml2js");
-const path = require("path");
+const Job     = require("../models/Job");
+const Profile = require("../models/Profile");
 
 const router = express.Router();
 
-const jobsFile = path.join(__dirname, "../database/jobs.xml");
-
-const builder = new xml2js.Builder();
-
-
-// ================= READ =================
-function readJobs(callback) {
-    fs.readFile(jobsFile, "utf8", (err, data) => {
-        if (err) return callback(err);
-
-        // If file empty
-        if (!data || !data.trim()) {
-            return callback(null, {
-                jobs: { jobList: [{ job: [] }] }
-            });
-        }
-
-        const parser = new xml2js.Parser({ explicitArray: true });
-
-        parser.parseString(data, (err, result) => {
-            // If XML broken, recover instead of crash
-            if (err || !result) {
-                return callback(null, {
-                    jobs: { jobList: [{ job: [] }] }
-                });
-            }
-
-            if (!result.jobs) result.jobs = {};
-            if (!result.jobs.jobList) result.jobs.jobList = [{}];
-            if (!result.jobs.jobList[0]) result.jobs.jobList[0] = {};
-            if (!result.jobs.jobList[0].job)
-                result.jobs.jobList[0].job = [];
-
-            callback(null, result);
-        });
-    });
+// Helper — converts a Mongo document into the same JSON shape the frontend already expects
+function toJobDTO(job) {
+    return {
+        id: job._id.toString(),
+        title: job.title,
+        company: job.company,
+        postedBy: job.postedBy,
+        applicantsCount: job.applicants?.length || 0,
+        requiredSkills: job.requiredSkills || []
+    };
 }
-
-
-// ================= WRITE =================
-function writeJobs(data, callback) {
-    const xml = builder.buildObject(data);
-    fs.writeFile(jobsFile, xml, callback);
-}
-
 
 // ================= POST JOB =================
-router.post("/post", (req, res) => {
-
-    const { title, company, email, skills } = req.body; // 🔥 FIXED
+router.post("/post", async (req, res) => {
+    const { title, company, email, skills } = req.body;
 
     if (!title || !company || !email) {
         return res.json({ message: "Missing fields" });
     }
 
-    readJobs((err, data) => {
-
-        if (err) return res.status(500).send("Read error");
-
-        const jobs = data.jobs.jobList[0].job;
-
-        const newJob = {
-            id: [Date.now().toString()],
-            title: [title],
-            company: [company],
-            postedBy: [email],
-
-            // 🔥 NEW (structured skills)
-            requiredSkills: [{
-                skill: skills || []
-            }],
-
-            applicants: [{ applicant: [] }]
-        };
-
-        jobs.push(newJob);
-
-        writeJobs(data, () => {
-            res.json({ message: "Job posted successfully" });
+    try {
+        const job = new Job({
+            title, company,
+            postedBy: email.toLowerCase(),
+            requiredSkills: skills || [],
+            applicants: []
         });
-
-    });
-
+        await job.save();
+        res.json({ message: "Job posted successfully" });
+    } catch (err) {
+        console.error("Post job error:", err);
+        res.status(500).json({ message: "Error posting job" });
+    }
 });
-
 
 // ================= GET ALL JOBS =================
-router.get("/all", (req, res) => {
-
-    readJobs((err, data) => {
-
-        if (err) return res.status(500).send("Read error");
-
-        const jobs = data.jobs.jobList[0].job;
-
-        const response = jobs.map(j => ({
-            id: j.id[0],
-            title: j.title[0],
-            company: j.company[0],
-            postedBy: j.postedBy[0],
-            applicantsCount: j.applicants?.[0]?.applicant?.length || 0,
-            requiredSkills: j.requiredSkills?.[0]?.skill || []
-        }));
-
-        res.json(response);
-
-    });
-
+router.get("/all", async (req, res) => {
+    try {
+        const jobs = await Job.find().sort({ createdAt: -1 });
+        res.json(jobs.map(toJobDTO));
+    } catch (err) {
+        res.status(500).json({ message: "Error reading jobs" });
+    }
 });
 
-
 // ================= APPLY JOB =================
-router.post("/apply", (req, res) => {
-  const { jobId, email } = req.body;
-  readJobs((err, data) => {
-    if (err) return res.status(500).json({ message: "Read error" });
-    const jobs = data.jobs.jobList[0].job;
-    const job = jobs.find(j => j.id[0] === jobId);
-    if (!job) return res.json({ message: "Job not found" });
-    if (job.postedBy[0] === email) return res.json({ message: "Cannot apply to your own job" });
+router.post("/apply", async (req, res) => {
+    const { jobId, email } = req.body;
 
-    // normalize applicants structure for <applicants/> and old XML
-    if (!Array.isArray(job.applicants) || typeof job.applicants[0] !== 'object') {
-      job.applicants = [{ applicant: [] }];
+    try {
+        const job = await Job.findById(jobId);
+        if (!job) return res.json({ message: "Job not found" });
+        if (job.postedBy === email.toLowerCase()) {
+            return res.json({ message: "Cannot apply to your own job" });
+        }
+        if (job.applicants.includes(email.toLowerCase())) {
+            return res.json({ message: "Already applied" });
+        }
+
+        job.applicants.push(email.toLowerCase());
+        await job.save();
+        res.json({ message: "Applied successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error applying to job" });
     }
-    if (!Array.isArray(job.applicants[0].applicant)) {
-      job.applicants[0].applicant = [];
-    }
-
-    const applicants = job.applicants[0].applicant.map(String);
-    if (applicants.includes(email)) return res.json({ message: "Already applied" });
-
-    job.applicants[0].applicant.push(email);
-    writeJobs(data, () => res.json({ message: "Applied successfully" }));
-  });
 });
 
 // ================= VIEW APPLICANTS =================
-router.get("/applicants/:jobId/:email", (req, res) => {
-
+router.get("/applicants/:jobId/:email", async (req, res) => {
     const { jobId, email } = req.params;
 
-    readJobs((err, data) => {
-
-        const jobs = data.jobs.jobList[0].job;
-
-        const job = jobs.find(j => j.id[0] === jobId);
-
+    try {
+        const job = await Job.findById(jobId);
         if (!job) return res.json({ message: "Job not found" });
-
-        if (job.postedBy[0] !== email) {
+        if (job.postedBy !== email.toLowerCase()) {
             return res.json({ message: "Access denied" });
         }
-
-        const applicants = job.applicants?.[0]?.applicant || [];
-
-        res.json(applicants);
-
-    });
-
+        res.json(job.applicants || []);
+    } catch (err) {
+        res.status(500).json({ message: "Error reading applicants" });
+    }
 });
-
 
 // ================= DELETE JOB =================
-router.delete("/delete/:jobId/:email", (req, res) => {
-
+router.delete("/delete/:jobId/:email", async (req, res) => {
     const { jobId, email } = req.params;
 
-    readJobs((err, data) => {
-
-        let jobs = data.jobs.jobList[0].job;
-
-        const index = jobs.findIndex(j => j.id[0] === jobId);
-
-        if (index === -1) return res.json({ message: "Job not found" });
-
-        const job = jobs[index];
-
-        if (job.postedBy[0] !== email) {
+    try {
+        const job = await Job.findById(jobId);
+        if (!job) return res.json({ message: "Job not found" });
+        if (job.postedBy !== email.toLowerCase()) {
             return res.json({ message: "Access denied" });
         }
-
-        jobs.splice(index, 1);
-
-        writeJobs(data, () => {
-            res.json({ message: "Deleted successfully" });
-        });
-
-    });
-
+        await Job.deleteOne({ _id: jobId });
+        res.json({ message: "Deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error deleting job" });
+    }
 });
-
 
 // ================= SEARCH JOB =================
-router.get("/search/:keyword", (req, res) => {
+router.get("/search/:keyword", async (req, res) => {
+    const keyword = req.params.keyword;
 
-    const keyword = req.params.keyword.toLowerCase();
-
-    readJobs((err, data) => {
-
-        const jobs = data.jobs.jobList[0].job;
-
-        const result = jobs
-            .filter(j =>
-                j.title[0].toLowerCase().includes(keyword)
-            )
-            .map(j => ({
-                id: j.id[0],
-                title: j.title[0],
-                company: j.company[0],
-                postedBy: j.postedBy[0]
-            }));
-
-        res.json(result);
-
-    });
-
+    try {
+        // $regex with "i" = case-insensitive partial match, like SQL's LIKE '%keyword%'
+        const jobs = await Job.find({ title: { $regex: keyword, $options: "i" } });
+        res.json(jobs.map(j => ({
+            id: j._id.toString(), title: j.title, company: j.company, postedBy: j.postedBy
+        })));
+    } catch (err) {
+        res.status(500).json({ message: "Error searching jobs" });
+    }
 });
-
 
 // ================= MY JOBS =================
-router.get("/my-jobs/:email", (req, res) => {
-
-    const email = req.params.email;
-
-    readJobs((err, data) => {
-
-        const jobs = data.jobs.jobList[0].job;
-
-        const result = jobs.filter(j => j.postedBy[0] === email);
-
-        res.json(result);
-
-    });
-
+router.get("/my-jobs/:email", async (req, res) => {
+    try {
+        const jobs = await Job.find({ postedBy: req.params.email.toLowerCase() }).sort({ createdAt: -1 });
+        res.json(jobs.map(toJobDTO));
+    } catch (err) {
+        res.status(500).json({ message: "Error reading jobs" });
+    }
 });
 
-
 // ================= SKILL GAP =================
-router.get("/skill-gap/:email/:jobId", (req, res) => {
-
+router.get("/skill-gap/:email/:jobId", async (req, res) => {
     const { email, jobId } = req.params;
 
-    const profileFile = path.join(__dirname, "../database/profiles.xml");
+    try {
+        const profile = await Profile.findOne({ email: email.toLowerCase() });
+        if (!profile) return res.json({ message: "Profile not found" });
 
-    fs.readFile(profileFile, "utf8", (err, pdata) => {
+        const job = await Job.findById(jobId);
+        if (!job) return res.json({ message: "Job not found" });
 
-        if (err) return res.json({ message: "Profile read error" });
+        const userSkills = profile.skills || [];
+        const required    = job.requiredSkills || [];
 
-        xml2js.parseString(pdata, (err, presult) => {
+        const normalize = s => s.trim().toLowerCase();
+        const userSkillsNorm = userSkills.map(normalize);
+        const missing = required.filter(skill => !userSkillsNorm.includes(normalize(skill)));
 
-            const profiles = presult.profiles.profile;
-            const profile = profiles.find(p => p.email[0] === email);
-
-            if (!profile) {
-                return res.json({ message: "Profile not found" });
-            }
-
-            const userSkills = profile.skills?.[0]?.skill || [];
-
-            readJobs((err, jdata) => {
-
-                const job = jdata.jobs.jobList[0].job.find(
-                    j => j.id[0] === jobId
-                );
-
-                if (!job) {
-                    return res.json({ message: "Job not found" });
-                }
-
-                const required =
-                    job.requiredSkills?.[0]?.skill || [];
-
-                const normalize = s => s.trim().toLowerCase();
-                const userSkillsNorm = userSkills.map(normalize);
-                const missing = required.filter(
-                    skill => !userSkillsNorm.includes(normalize(skill))
-                );
-
-                res.json({
-                    userSkills,
-                    required,
-                    missing
-                });
-
-            });
-
-        });
-
-    });
-
+        res.json({ userSkills, required, missing });
+    } catch (err) {
+        res.status(500).json({ message: "Error computing skill gap" });
+    }
 });
 
 // ================= MY APPLICATIONS =================
-router.get("/my-applications/:email", (req, res) => {
-    const email = req.params.email;
-
-    readJobs((err, data) => {
-        if (err) return res.status(500).json({ message: "Read error" });
-
-        const jobs = data.jobs.jobList[0].job || [];
-
-        const appliedJobs = jobs
-            .filter(job => {
-                const applicants = job.applicants?.[0]?.applicant || [];
-                return applicants.includes(email);
-            })
-            .map(job => ({
-                id: job.id?.[0] || "",
-                title: job.title?.[0] || "",
-                company: job.company?.[0] || "",
-                postedBy: job.postedBy?.[0] || "",
-                requiredSkills: job.requiredSkills?.[0]?.skill || []
-            }));
-
-        res.json(appliedJobs);
-    });
+router.get("/my-applications/:email", async (req, res) => {
+    try {
+        const jobs = await Job.find({ applicants: req.params.email.toLowerCase() });
+        res.json(jobs.map(toJobDTO));
+    } catch (err) {
+        res.status(500).json({ message: "Error reading applications" });
+    }
 });
-
 
 module.exports = router;

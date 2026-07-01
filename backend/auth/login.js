@@ -1,41 +1,36 @@
-const fs      = require("fs");
-const path    = require("path");
-const xml2js  = require("xml2js");
+const bcrypt = require("bcryptjs");
+const User   = require("../models/User");
 
-const xmlFilePath = path.join(__dirname, "../database/users.xml");
-
-exports.login = (req, res) => {
+exports.login = async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.json({ message: "Email and password required" });
 
-    fs.readFile(xmlFilePath, "utf8", (err, data) => {
-        if (err) return res.json({ message: "Database error" });
+    try {
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) return res.json({ message: "User not found" });
 
-        xml2js.parseString(data, (err, result) => {
-            if (err) return res.json({ message: "Parse error" });
+        const passwordMatches = await bcrypt.compare(password, user.password);
+        if (!passwordMatches) return res.json({ message: "Wrong password" });
 
-            const users = result.users?.user || [];
-            const user  = users.find(u => u.email[0] === email);
+        // Block students who have graduated
+        const gradYear = parseInt(user.graduationYear);
+        if (user.role === "student" && gradYear && gradYear < new Date().getFullYear()) {
+            return res.json({ message: "Access expired — you have graduated." });
+        }
 
-            if (!user)                        return res.json({ message: "User not found" });
-            if (user.password[0] !== password) return res.json({ message: "Wrong password" });
-
-            // Block students who have graduated
-            const gradYear = parseInt(user.graduationYear?.[0]);
-            if (user.role?.[0] === "student" && gradYear && gradYear < new Date().getFullYear()) {
-                return res.json({ message: "Access expired — you have graduated." });
-            }
-
-            res.json({
-                message:        "Login successful",
-                email:          user.email[0],
-                name:           user.name?.[0] || "",
-                role:           user.role?.[0] || "student",
-                program:        user.program?.[0]        || "",
-                joinYear:       user.joinYear?.[0]       || "",
-                graduationYear: user.graduationYear?.[0] || "",
-                company:        user.company?.[0]        || ""
-            });
+        res.json({
+            message:        "Login successful",
+            email:          user.email,
+            name:           user.name || "",
+            role:           user.role || "student",
+            program:        user.program || "",
+            joinYear:       user.joinYear || "",
+            graduationYear: user.graduationYear || "",
+            company:        user.company || ""
         });
-    });
+
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ message: "Server error during login" });
+    }
 };

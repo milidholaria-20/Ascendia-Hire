@@ -1,16 +1,12 @@
-const fs      = require("fs");
-const path    = require("path");
-const xml2js  = require("xml2js");
+const bcrypt = require("bcryptjs");
+const User   = require("../models/User");
 
-const xmlFilePath = path.join(__dirname, "../database/users.xml");
-
-exports.signup = (req, res) => {
+exports.signup = async (req, res) => {
     const { name, program, joinYear, email, password, company } = req.body;
 
-    // role is sent explicitly from the frontend; fallback to email-domain detection
     let role = req.body.role;
     if (!role || !["student", "recruiter"].includes(role)) {
-        role = email.endsWith("@nitk.edu.in") ? "student" : "recruiter";
+        role = email?.endsWith("@nitk.edu.in") ? "student" : "recruiter";
     }
 
     if (!name || !email || !password) {
@@ -23,48 +19,35 @@ exports.signup = (req, res) => {
         return res.json({ message: "Program and join year are required for students" });
     }
 
-    const graduationYear = role === "student"
-        ? (program === "BTech" ? parseInt(joinYear) + 4 : parseInt(joinYear) + 2)
-        : null;
+    try {
+        const existing = await User.findOne({ email: email.toLowerCase() });
+        if (existing) {
+            return res.json({ message: "User already exists" });
+        }
 
-    fs.readFile(xmlFilePath, "utf8", (err, data) => {
-        if (err) return res.json({ message: "Database error" });
+        const graduationYear = role === "student"
+            ? (program === "BTech" ? parseInt(joinYear) + 4 : parseInt(joinYear) + 2)
+            : null;
 
-        xml2js.parseString(data, (err, result) => {
-            if (err) return res.json({ message: "Parse error" });
+        // Hash the password before storing — never save plain text passwords
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-            if (!result.users)      result.users      = {};
-            if (!result.users.user) result.users.user = [];
-
-            const users = result.users.user;
-            if (users.find(u => u.email[0] === email)) {
-                return res.json({ message: "User already exists" });
-            }
-
-            const newUser = {
-                name:     [name],
-                email:    [email],
-                password: [password],
-                role:     [role]
-            };
-
-            if (role === "student") {
-                newUser.program        = [program];
-                newUser.joinYear       = [joinYear];
-                newUser.graduationYear = [String(graduationYear)];
-            }
-            if (role === "recruiter" && company) {
-                newUser.company = [company];
-            }
-
-            users.push(newUser);
-
-            const builder = new xml2js.Builder();
-            const xml     = builder.buildObject(result);
-
-            fs.writeFile(xmlFilePath, xml, () => {
-                res.json({ message: "Signup successful" });
-            });
+        const newUser = new User({
+            name,
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            role,
+            program:        role === "student" ? program : "",
+            joinYear:       role === "student" ? joinYear : "",
+            graduationYear: role === "student" ? String(graduationYear) : "",
+            company:        role === "recruiter" ? (company || "") : ""
         });
-    });
+
+        await newUser.save();
+        res.json({ message: "Signup successful" });
+
+    } catch (err) {
+        console.error("Signup error:", err);
+        res.status(500).json({ message: "Server error during signup" });
+    }
 };

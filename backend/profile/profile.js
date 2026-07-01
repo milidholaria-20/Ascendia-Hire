@@ -1,340 +1,191 @@
-const fs      = require("fs");
-const path    = require("path");
-const xml2js  = require("xml2js");
+const User    = require("../models/User");
+const Profile = require("../models/Profile");
+const Job     = require("../models/Job");
+const Startup = require("../models/Startup");
 
-const xmlFilePath = path.join(__dirname, "../database/profiles.xml");
-const usersFilePath = path.join(__dirname, "../database/users.xml");
-const startupsFilePath = path.join(__dirname, "../database/startups.xml");
-const jobsFilePath = path.join(__dirname, "../database/jobs.xml");
-
-// Ensure file exists with valid root element
-if (!fs.existsSync(xmlFilePath)) {
-    fs.writeFileSync(xmlFilePath, "<profiles></profiles>");
-}
-
-// ── READ XML ──────────────────────────────────────────────────────────────────
-function readXML(callback) {
-    fs.readFile(xmlFilePath, "utf8", (err, data) => {
-        if (err) return callback(err);
-
-        const parser = new xml2js.Parser();
-        parser.parseString(data, (err, result) => {
-            if (err) return callback(err);
-
-            // xml2js parses <profiles></profiles> as { profiles: '' }
-            if (!result || !result.profiles || typeof result.profiles !== "object") {
-                result = { profiles: { profile: [] } };
-            }
-            if (!Array.isArray(result.profiles.profile)) {
-                result.profiles.profile = [];
-            }
-
-            callback(null, result);
-        });
-    });
-}
-
-// ── WRITE XML ─────────────────────────────────────────────────────────────────
-function writeXML(data, callback) {
-    const builder = new xml2js.Builder();
-    const xml     = builder.buildObject(data);
-    fs.writeFile(xmlFilePath, xml, callback);
-}
-
-function readXmlFile(filePath, emptyRoot, callback) {
-    fs.readFile(filePath, "utf8", (err, data) => {
-        if (err) return callback(err);
-
-        const parser = new xml2js.Parser({ explicitArray: true });
-        parser.parseString(data, (parseErr, result) => {
-            if (parseErr || !result || typeof result !== "object") {
-                return callback(null, emptyRoot);
-            }
-            callback(null, result);
-        });
-    });
-}
-
-function writeXmlFile(filePath, data, callback) {
-    const builder = new xml2js.Builder();
-    fs.writeFile(filePath, builder.buildObject(data), callback);
-}
-
-function removeProfileRecord(result, email) {
-    result.profiles.profile = result.profiles.profile.filter(
-        p => !(p.email && p.email[0] === email)
-    );
+// Helper — matches the nested-array shape dashboard.js already expects
+// (written against xml2js's explicitArray output, e.g. data.name?.[0],
+// data.skills?.[0]?.skill). Keeping this shape means dashboard.js needs
+// ZERO changes for the profile module.
+function toProfileDTO(p) {
+    return {
+        name:           [p.name || ""],
+        email:          [p.email],
+        program:        [p.program || ""],
+        joinYear:       [p.joinYear || ""],
+        bio:            [p.bio || ""],
+        phone:          [p.phone || ""],
+        github:         [p.github || ""],
+        linkedin:       [p.linkedin || ""],
+        portfolio:      [p.portfolio || ""],
+        resume:         [p.resume || ""],
+        profilePicture: [p.profilePicture || "default.png"],
+        skills:         [{ skill: p.skills || [] }]
+    };
 }
 
 // ── CREATE PROFILE ────────────────────────────────────────────────────────────
-exports.createProfile = (req, res) => {
-    const {
-        name, email, program, joinYear, bio,
-        phone, github, linkedin, portfolio,
-        resume, profilePicture
-    } = req.body;
+exports.createProfile = async (req, res) => {
+    const { name, email, program, joinYear, bio, phone, github, linkedin, portfolio, resume, profilePicture } = req.body;
 
     if (!name || !email || !program || !joinYear) {
         return res.json({ message: "Missing required fields" });
     }
 
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        const profiles = result.profiles.profile;
-        const existing = profiles.find(p => p.email && p.email[0] === email);
+    try {
+        const existing = await Profile.findOne({ email: email.toLowerCase() });
         if (existing) return res.json({ message: "Profile already exists" });
 
-        profiles.push({
-            name:           [name],
-            email:          [email],
-            program:        [program],
-            joinYear:       [joinYear],
-            bio:            [bio            || ""],
-            phone:          [phone          || ""],
-            github:         [github         || ""],
-            linkedin:       [linkedin       || ""],
-            portfolio:      [portfolio      || ""],
-            resume:         [resume         || ""],
-            profilePicture: [profilePicture || "default.png"],
-            skills:         [{ skill: [] }]
+        const profile = new Profile({
+            name, email: email.toLowerCase(), program, joinYear,
+            bio: bio || "", phone: phone || "", github: github || "",
+            linkedin: linkedin || "", portfolio: portfolio || "",
+            resume: resume || "", profilePicture: profilePicture || "default.png",
+            skills: []
         });
 
-        writeXML(result, (err) => {
-            if (err) return res.json({ message: "Error saving profile" });
-            res.json({ message: "Profile created successfully" });
-        });
-    });
+        await profile.save();
+        res.json({ message: "Profile created successfully" });
+    } catch (err) {
+        console.error("Create profile error:", err);
+        res.status(500).json({ message: "Error saving profile" });
+    }
 };
 
 // ── GET PROFILE ───────────────────────────────────────────────────────────────
-exports.getProfile = (req, res) => {
-    const { email } = req.params;
-
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        const profile = result.profiles.profile.find(
-            p => p.email && p.email[0] === email
-        );
+exports.getProfile = async (req, res) => {
+    try {
+        const profile = await Profile.findOne({ email: req.params.email.toLowerCase() });
         if (!profile) return res.json({ message: "Profile not found" });
-        res.json(profile);
-    });
+        res.json(toProfileDTO(profile));
+    } catch (err) {
+        res.status(500).json({ message: "Error reading profile" });
+    }
 };
 
 // ── UPDATE PROFILE ────────────────────────────────────────────────────────────
-exports.updateProfile = (req, res) => {
-    const { email } = req.params;
+exports.updateProfile = async (req, res) => {
     const { bio, phone, github, linkedin, portfolio, resume, profilePicture } = req.body;
 
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        const profile = result.profiles.profile.find(
-            p => p.email && p.email[0] === email
-        );
+    try {
+        const profile = await Profile.findOne({ email: req.params.email.toLowerCase() });
         if (!profile) return res.json({ message: "Profile not found" });
 
-        if (bio            !== undefined) profile.bio            = [bio];
-        if (phone          !== undefined) profile.phone          = [phone];
-        if (github         !== undefined) profile.github         = [github];
-        if (linkedin       !== undefined) profile.linkedin       = [linkedin];
-        if (portfolio      !== undefined) profile.portfolio      = [portfolio];
-        if (resume         !== undefined) profile.resume         = [resume];
-        if (profilePicture !== undefined) profile.profilePicture = [profilePicture];
+        if (bio            !== undefined) profile.bio            = bio;
+        if (phone          !== undefined) profile.phone          = phone;
+        if (github         !== undefined) profile.github         = github;
+        if (linkedin       !== undefined) profile.linkedin       = linkedin;
+        if (portfolio      !== undefined) profile.portfolio      = portfolio;
+        if (resume         !== undefined) profile.resume         = resume;
+        if (profilePicture !== undefined) profile.profilePicture = profilePicture;
 
-        writeXML(result, (err) => {
-            if (err) return res.json({ message: "Error updating profile" });
-            res.json({ message: "Profile updated successfully" });
-        });
-    });
+        await profile.save();
+        res.json({ message: "Profile updated successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error updating profile" });
+    }
 };
 
 // ── ADD SKILL ─────────────────────────────────────────────────────────────────
-exports.addSkill = (req, res) => {
+exports.addSkill = async (req, res) => {
     const { email, skill } = req.body;
     if (!email || !skill) return res.json({ message: "Email and skill required" });
 
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        const profile = result.profiles.profile.find(
-            p => p.email && p.email[0] === email
-        );
+    try {
+        const profile = await Profile.findOne({ email: email.toLowerCase() });
         if (!profile) return res.json({ message: "Profile not found" });
 
-        if (!profile.skills || !profile.skills[0]) profile.skills = [{ skill: [] }];
-        if (!profile.skills[0].skill)              profile.skills[0].skill = [];
+        const normalize = s => s.trim().toLowerCase();
+        const alreadyHasSkill = profile.skills.some(s => normalize(s) === normalize(skill));
+        if (alreadyHasSkill) return res.json({ message: "Skill already exists" });
 
-        if (profile.skills[0].skill.some(s => s.trim().toLowerCase() === skill.trim().toLowerCase())) {
-            return res.json({ message: "Skill already exists" });
-        }
-
-        profile.skills[0].skill.push(skill);
-
-        writeXML(result, (err) => {
-            if (err) return res.json({ message: "Error adding skill" });
-            res.json({ message: "Skill added successfully" });
-        });
-    });
+        profile.skills.push(skill);
+        await profile.save();
+        res.json({ message: "Skill added successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error adding skill" });
+    }
 };
 
 // ── DELETE SKILL ──────────────────────────────────────────────────────────────
-exports.deleteSkill = (req, res) => {
+exports.deleteSkill = async (req, res) => {
     const { email, skill } = req.body;
 
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        const profile = result.profiles.profile.find(
-            p => p.email && p.email[0] === email
-        );
+    try {
+        const profile = await Profile.findOne({ email: email.toLowerCase() });
         if (!profile) return res.json({ message: "Profile not found" });
 
-        if (!profile.skills || !profile.skills[0]?.skill) {
-            return res.json({ message: "No skills found" });
-        }
-
-        profile.skills[0].skill = profile.skills[0].skill.filter(s => s !== skill);
-
-        writeXML(result, (err) => {
-            if (err) return res.json({ message: "Error removing skill" });
-            res.json({ message: "Skill removed successfully" });
-        });
-    });
+        profile.skills = profile.skills.filter(s => s !== skill);
+        await profile.save();
+        res.json({ message: "Skill removed successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error removing skill" });
+    }
 };
 
 // ── DELETE PROFILE ────────────────────────────────────────────────────────────
-exports.deleteProfile = (req, res) => {
-    const { email } = req.params;
-
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        removeProfileRecord(result, email);
-
-        writeXML(result, (err) => {
-            if (err) return res.json({ message: "Error deleting profile" });
-            res.json({ message: "Profile deleted successfully" });
-        });
-    });
+exports.deleteProfile = async (req, res) => {
+    try {
+        await Profile.deleteOne({ email: req.params.email.toLowerCase() });
+        res.json({ message: "Profile deleted successfully" });
+    } catch (err) {
+        res.status(500).json({ message: "Error deleting profile" });
+    }
 };
 
-exports.deleteAccount = (req, res) => {
-    const { email } = req.params;
+// ── DELETE FULL ACCOUNT (user + profile + cleanup startups/jobs) ─────────────
+exports.deleteAccount = async (req, res) => {
+    const email = req.params.email.toLowerCase();
 
-    readXmlFile(usersFilePath, { users: { user: [] } }, (usersErr, usersData) => {
-        if (usersErr) return res.status(500).json({ message: "Error reading users" });
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "User not found" });
 
-        const users = usersData?.users?.user || [];
-        const userExists = users.some(u => u.email?.[0] === email);
-        if (!userExists) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        // Remove the user + their profile
+        await User.deleteOne({ email });
+        await Profile.deleteOne({ email });
 
-        usersData.users.user = users.filter(u => u.email?.[0] !== email);
+        // Remove startups they created; pull them out of any team/messages they're in
+        await Startup.deleteMany({ creator: email });
+        await Startup.updateMany(
+            {},
+            { $pull: { team: email, messages: { author: email } } }
+        );
 
-        readXML((profilesErr, profilesData) => {
-            if (profilesErr) return res.status(500).json({ message: "Error reading profiles" });
-            removeProfileRecord(profilesData, email);
+        // Remove jobs they posted; pull them out of any applicants list
+        await Job.deleteMany({ postedBy: email });
+        await Job.updateMany({}, { $pull: { applicants: email } });
 
-            readXmlFile(startupsFilePath, { startups: { startup: [] } }, (startupsErr, startupsData) => {
-                if (startupsErr) return res.status(500).json({ message: "Error reading startups" });
-
-                const startups = startupsData?.startups?.startup || [];
-                startupsData.startups.startup = startups
-                    .filter(startup => startup.creator?.[0] !== email)
-                    .map(startup => {
-                        const members = startup.team?.[0]?.member || [];
-                        if (!startup.team) startup.team = [{ member: [] }];
-                        if (!startup.team[0].member) startup.team[0].member = [];
-                        startup.team[0].member = members.filter(member => member !== email);
-
-                        const messages = startup.messages?.[0]?.message || [];
-                        if (startup.messages?.[0]?.message) {
-                            startup.messages[0].message = messages.filter(
-                                message => message.author?.[0] !== email
-                            );
-                        }
-
-                        return startup;
-                    });
-
-                readXmlFile(jobsFilePath, { jobs: { jobList: [{ job: [] }] } }, (jobsErr, jobsData) => {
-                    if (jobsErr) return res.status(500).json({ message: "Error reading jobs" });
-
-                    const jobs = jobsData?.jobs?.jobList?.[0]?.job || [];
-                    jobsData.jobs.jobList[0].job = jobs
-                        .filter(job => job.postedBy?.[0] !== email)
-                        .map(job => {
-                            if (!job.applicants) job.applicants = [{ applicant: [] }];
-                            if (!job.applicants[0].applicant) job.applicants[0].applicant = [];
-                            job.applicants[0].applicant = job.applicants[0].applicant.filter(
-                                applicant => applicant !== email
-                            );
-                            return job;
-                        });
-
-                    writeXmlFile(usersFilePath, usersData, (writeUsersErr) => {
-                        if (writeUsersErr) return res.status(500).json({ message: "Error deleting account" });
-
-                        writeXML(profilesData, (writeProfilesErr) => {
-                            if (writeProfilesErr) return res.status(500).json({ message: "Error deleting account" });
-
-                            writeXmlFile(startupsFilePath, startupsData, (writeStartupsErr) => {
-                                if (writeStartupsErr) return res.status(500).json({ message: "Error deleting account" });
-
-                                writeXmlFile(jobsFilePath, jobsData, (writeJobsErr) => {
-                                    if (writeJobsErr) return res.status(500).json({ message: "Error deleting account" });
-                                    res.json({ message: "Account deleted successfully" });
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    });
+        res.json({ message: "Account deleted successfully" });
+    } catch (err) {
+        console.error("Delete account error:", err);
+        res.status(500).json({ message: "Error deleting account" });
+    }
 };
 
-// ── GET ALL PROFILES ──────────────────────────────────────────────────────────
-// Returns only student profiles — recruiters are excluded by cross-referencing
-// the role field in users.xml. This prevents recruiter accounts that happen to
-// have a profile entry from appearing in the Student Profiles view.
-exports.getAllProfiles = (req, res) => {
-    const usersFile = path.join(__dirname, "../database/users.xml");
-    fs.readFile(usersFile, "utf8", (err, udata) => {
-        if (err) return res.json({ message: "Error reading users" });
-        const uParser = new xml2js.Parser({ explicitArray: true });
-        uParser.parseString(udata, (err, uresult) => {
-            if (err) return res.json({ message: "Error parsing users" });
-            const users = uresult?.users?.user || [];
-            const studentEmails = new Set(
-                users
-                    .filter(u => u.role?.[0] === "student")
-                    .map(u => u.email?.[0])
-            );
-            readXML((err, result) => {
-                if (err) return res.json({ message: "Error reading file" });
-                const students = result.profiles.profile.filter(
-                    p => studentEmails.has(p.email?.[0])
-                );
-                res.json(students);
-            });
-        });
-    });
+// ── GET ALL PROFILES (students only) ──────────────────────────────────────────
+exports.getAllProfiles = async (req, res) => {
+    try {
+        const studentUsers   = await User.find({ role: "student" }, "email");
+        const studentEmails  = studentUsers.map(u => u.email);
+        const students       = await Profile.find({ email: { $in: studentEmails } });
+        res.json(students.map(toProfileDTO));
+    } catch (err) {
+        res.status(500).json({ message: "Error reading profiles" });
+    }
 };
 
 // ── SEARCH BY SKILL ───────────────────────────────────────────────────────────
-exports.searchBySkill = (req, res) => {
-    const { skill } = req.params;
+exports.searchBySkill = async (req, res) => {
+    const skill = req.params.skill.trim();
 
-    readXML((err, result) => {
-        if (err) return res.json({ message: "Error reading file" });
-
-        const filtered = result.profiles.profile.filter(p =>
-            p.skills?.[0]?.skill?.some(s => s.trim().toLowerCase() === skill.trim().toLowerCase())
-        );
-        res.json(filtered);
-    });
+    try {
+        // Case-insensitive regex match against any element of the skills array
+        const profiles = await Profile.find({
+            skills: { $elemMatch: { $regex: `^${skill}$`, $options: "i" } }
+        });
+        res.json(profiles.map(toProfileDTO));
+    } catch (err) {
+        res.status(500).json({ message: "Error searching profiles" });
+    }
 };

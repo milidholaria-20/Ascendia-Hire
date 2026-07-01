@@ -23,7 +23,7 @@ document.getElementById("sidebarAvatar").textContent  = initials;
 document.getElementById("sidebarName").textContent    = userName || email.split("@")[0];
 document.getElementById("sidebarEmail").textContent   = email;
 
-const roleBadgeColor = { student: "background:rgba(99,102,241,0.2);color:#a5b4fc", recruiter: "background:rgba(167,139,250,0.2);color:#c4b5fd" };
+const roleBadgeColor = { student: "background:rgba(59,130,246,0.15);color:#7CA8FF", recruiter: "background:rgba(0,212,255,0.16);color:#4FE0FF" };
 const roleLabel      = { student: "🎓 Student", recruiter: "🏢 Recruiter" };
 const roleEl = document.getElementById("sidebarRole");
 roleEl.textContent = roleLabel[role] || role;
@@ -32,10 +32,10 @@ roleEl.setAttribute("style", roleBadgeColor[role] || "");
 document.getElementById("headerBadge").textContent = role === "recruiter"
     ? (company || "Recruiter")
     : (localStorage.getItem("userProgram") || "Student");
-document.getElementById("headerBadge").className = `tag ${role === "recruiter" ? "bg-violet-100 text-violet-700" : ""}`;
+document.getElementById("headerBadge").className = `tag`;
 document.getElementById("headerBadge").style.cssText = role === "recruiter"
-    ? "background:#f3e8ff;color:#7e22ce"
-    : "background:#eef2ff;color:#4338ca";
+    ? "background:rgba(0,212,255,0.14);color:#4FE0FF"
+    : "background:rgba(59,130,246,0.14);color:#7CA8FF";
 
 const studentNav = `
     <button class="nav-btn" id="nav-home"    onclick="goNav('home')">   <i class="fas fa-chart-pie"></i>Dashboard</button>
@@ -66,7 +66,7 @@ document.getElementById("sidebarNav").innerHTML = role === "recruiter" ? recruit
 function toast(msg, isError = false) {
     const t = document.getElementById("toast");
     t.innerHTML = `<i class="fas ${isError ? 'fa-circle-xmark' : 'fa-circle-check'}"></i> ${msg}`;
-    t.style.background = isError ? "#dc2626" : "#0f172a";
+    t.style.background = isError ? "#F87171" : "#E7ECF5";
     t.classList.add("show");
     clearTimeout(t._timer);
     t._timer = setTimeout(() => t.classList.remove("show"), 3200);
@@ -107,7 +107,7 @@ function loadModule(mod) {
         postjob:  () => renderPostJob(view),
         myjobs:   () => renderMyJobs(view),
         profiles: () => renderStudentProfiles(view),
-    }[mod] || (() => { view.innerHTML = `<p style="color:#94a3b8;text-align:center;margin-top:4rem">Coming soon…</p>`; }))();
+    }[mod] || (() => { view.innerHTML = `<p style="color:#8892A8;text-align:center;margin-top:4rem">Coming soon…</p>`; }))();
 }
 
 // ── Socket.IO setup ──────────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ function renderHome(view) {
     <div style="display:flex;flex-direction:column;gap:1.25rem">
 
         <!-- Hero banner -->
-        <div style="background:linear-gradient(135deg,${isRec?"#4c1d95,#1e1b4b":"#3730a3,#6d28d9"});border-radius:20px;padding:2rem;color:white;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(79,70,229,0.3)">
+        <div style="background:linear-gradient(135deg,${isRec?"#1E3A5F,#0F1F35":"#00D4FF,#4FE0FF"});border-radius:20px;padding:2rem;color:white;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
             <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:rgba(255,255,255,0.05);border-radius:50%"></div>
             <div style="position:absolute;bottom:-60px;right:80px;width:120px;height:120px;background:rgba(255,255,255,0.04);border-radius:50%"></div>
             <div style="position:relative">
@@ -162,10 +162,10 @@ function renderHome(view) {
                 </p>
                 <div style="display:flex;gap:0.65rem;flex-wrap:wrap">
                     ${isRec
-                        ? `<button onclick="loadModule('postjob')" style="background:white;color:#4f46e5;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Outfit,sans-serif">Post a Job</button>
-                           <button onclick="loadModule('profiles')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Outfit,sans-serif">Browse Students</button>`
-                        : `<button onclick="loadModule('jobs')" style="background:white;color:#4f46e5;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Outfit,sans-serif">Browse Jobs</button>
-                           <button onclick="loadModule('pitch')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Outfit,sans-serif">Pitch an Idea</button>`}
+                        ? `<button onclick="loadModule('postjob')" style="background:white;color:#00D4FF;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Post a Job</button>
+                           <button onclick="loadModule('profiles')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Browse Students</button>`
+                        : `<button onclick="loadModule('jobs')" style="background:white;color:#00D4FF;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Browse Jobs</button>
+                           <button onclick="loadModule('pitch')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Pitch an Idea</button>`}
                 </div>
             </div>
         </div>
@@ -176,21 +176,21 @@ function renderHome(view) {
                 <p class="section-title"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:6px"></i>Quick Actions</p>
                 <div style="display:flex;flex-direction:column;gap:0.5rem">
                     ${isRec ? `
-                    <button onclick="loadModule('postjob')"  class="quick-action-btn"><i class="fas fa-plus-circle" style="color:#818cf8"></i> Post a New Job</button>
-                    <button onclick="loadModule('myjobs')"   class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#818cf8"></i> View My Posted Jobs</button>
+                    <button onclick="loadModule('postjob')"  class="quick-action-btn"><i class="fas fa-plus-circle" style="color:#4FE0FF"></i> Post a New Job</button>
+                    <button onclick="loadModule('myjobs')"   class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#4FE0FF"></i> View My Posted Jobs</button>
                     <button onclick="loadModule('profiles')" class="quick-action-btn"><i class="fas fa-users"       style="color:#34d399"></i> Browse Student Profiles</button>
                     <button onclick="loadModule('explore')"  class="quick-action-btn"><i class="fas fa-search"      style="color:#f59e0b"></i> Explore Startups</button>
                     ` : `
-                    <button onclick="loadModule('profile')"  class="quick-action-btn"><i class="fas fa-user-edit"   style="color:#818cf8"></i> Update Profile & Skills</button>
-                    <button onclick="loadModule('jobs')"     class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#a78bfa"></i> Browse All Jobs</button>
+                    <button onclick="loadModule('profile')"  class="quick-action-btn"><i class="fas fa-user-edit"   style="color:#4FE0FF"></i> Update Profile & Skills</button>
+                    <button onclick="loadModule('jobs')"     class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#3B82F6"></i> Browse All Jobs</button>
                     <button onclick="loadModule('myapps')"   class="quick-action-btn"><i class="fas fa-paper-plane" style="color:#34d399"></i> My Applications</button>
                     <button onclick="loadModule('pitch')"    class="quick-action-btn"><i class="fas fa-lightbulb"   style="color:#f59e0b"></i> Pitch a Startup Idea</button>
                     `}
                 </div>
             </div>
             <div class="card">
-                <p class="section-title"><i class="fas fa-briefcase" style="color:#818cf8;margin-right:6px"></i>Latest Jobs</p>
-                <div id="homeJobsList"><p style="color:#94a3b8;font-size:0.83rem">Loading…</p></div>
+                <p class="section-title"><i class="fas fa-briefcase" style="color:#4FE0FF;margin-right:6px"></i>Latest Jobs</p>
+                <div id="homeJobsList"><p style="color:#8892A8;font-size:0.83rem">Loading…</p></div>
             </div>
         </div>
     </div>
@@ -198,11 +198,11 @@ function renderHome(view) {
     <style>
     .quick-action-btn {
         width:100%;display:flex;align-items:center;gap:0.65rem;padding:0.65rem 0.85rem;
-        background:#f8fafc;border:1.5px solid #eef0f5;border-radius:12px;cursor:pointer;
-        font-size:0.82rem;font-weight:600;color:#334155;font-family:Outfit,sans-serif;
+        background:#1B2436;border:1.5px solid #232C42;border-radius:12px;cursor:pointer;
+        font-size:0.82rem;font-weight:600;color:#C7D0E0;font-family:Inter,sans-serif;
         transition:all 0.15s;text-align:left;
     }
-    .quick-action-btn:hover { background:#eef2ff;border-color:#c7d2fe;color:#4338ca; }
+    .quick-action-btn:hover { background:rgba(59,130,246,0.14);border-color:rgba(0,212,255,0.35);color:#7CA8FF; }
     @media(max-width:600px){
         .quick-action-btn { padding:0.55rem 0.7rem; }
         div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr!important; }
@@ -211,12 +211,12 @@ function renderHome(view) {
 
     fetch(`${API}/jobs/all`).then(r=>r.json()).then(jobs=>{
         const el = document.getElementById("homeJobsList");
-        if (!jobs.length) { el.innerHTML=`<p style="color:#94a3b8;font-size:0.83rem">No jobs yet.</p>`; return; }
+        if (!jobs.length) { el.innerHTML=`<p style="color:#8892A8;font-size:0.83rem">No jobs yet.</p>`; return; }
         el.innerHTML = jobs.slice(0,4).map(j=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0;border-bottom:1px solid #1B2436">
                 <div>
-                    <p style="font-weight:700;font-size:0.83rem;color:#0f172a">${j.title}</p>
-                    <p style="font-size:0.72rem;color:#94a3b8">${j.company}</p>
+                    <p style="font-weight:700;font-size:0.83rem;color:#E7ECF5">${j.title}</p>
+                    <p style="font-size:0.72rem;color:#8892A8">${j.company}</p>
                 </div>
                 <button class="btn-sm-outline" onclick="loadModule('jobs')">View</button>
             </div>`).join("");
@@ -229,10 +229,10 @@ function renderHome(view) {
 function renderProfile(view) {
     view.innerHTML = `
     <div style="max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:1.1rem">
-        <div class="card" id="profileCard"><p style="color:#94a3b8;font-size:0.85rem">Loading…</p></div>
+        <div class="card" id="profileCard"><p style="color:#8892A8;font-size:0.85rem">Loading…</p></div>
         ${role==="student"?`
         <div class="card">
-            <p class="section-title"><i class="fas fa-tools" style="color:#818cf8;margin-right:6px"></i>Skills</p>
+            <p class="section-title"><i class="fas fa-tools" style="color:#4FE0FF;margin-right:6px"></i>Skills</p>
             <div id="skillsList" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem"></div>
             <div style="display:flex;gap:0.65rem">
                 <input class="input-field" id="skillInput" placeholder="Add a skill (e.g. React)" style="max-width:260px" onkeydown="if(event.key==='Enter')addSkill()">
@@ -240,7 +240,7 @@ function renderProfile(view) {
             </div>
         </div>`:""}
         <div class="card">
-            <p class="section-title"><i class="fas fa-edit" style="color:#818cf8;margin-right:6px"></i>Update Details</p>
+            <p class="section-title"><i class="fas fa-edit" style="color:#4FE0FF;margin-right:6px"></i>Update Details</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:1rem">
                 <input class="input-field" id="profileBio"       placeholder="Bio / About">
                 <input class="input-field" id="profilePhone"     placeholder="Phone">
@@ -250,14 +250,14 @@ function renderProfile(view) {
             </div>
             <button class="btn btn-indigo" onclick="updateProfile()"><i class="fas fa-save"></i> Save Changes</button>
         </div>
-        <div class="card" style="border-color:#fecaca;background:#fffafa">
-            <p class="section-title"><i class="fas fa-triangle-exclamation" style="color:#dc2626;margin-right:6px"></i>Danger Zone</p>
-            <p style="font-size:0.82rem;color:#64748b;line-height:1.6;margin-bottom:1rem">
+        <div class="card" style="border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.08)">
+            <p class="section-title"><i class="fas fa-triangle-exclamation" style="color:#F87171;margin-right:6px"></i>Danger Zone</p>
+            <p style="font-size:0.82rem;color:#7C879C;line-height:1.6;margin-bottom:1rem">
                 Delete just your profile to hide it from others, or delete your whole account to remove your platform access and related visible records.
             </p>
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
                 <button class="btn btn-red" onclick="deleteMyProfile()"><i class="fas fa-user-slash"></i> Delete Profile</button>
-                <button class="btn btn-red" style="background:#7f1d1d" onclick="deleteMyAccount()"><i class="fas fa-trash"></i> Delete Account</button>
+                <button class="btn btn-red" style="background:rgba(239,68,68,0.4)" onclick="deleteMyAccount()"><i class="fas fa-trash"></i> Delete Account</button>
             </div>
         </div>
     </div>`;
@@ -270,27 +270,27 @@ async function loadProfileData() {
         const card = document.getElementById("profileCard");
         if (!card) return;
         if (data.message === "Profile not found") {
-            card.innerHTML = `<p style="color:#64748b;font-size:0.85rem;margin-bottom:1rem">No profile found. Create one to enable skill gap analysis.</p>
+            card.innerHTML = `<p style="color:#7C879C;font-size:0.85rem;margin-bottom:1rem">No profile found. Create one to enable skill gap analysis.</p>
                 <button class="btn btn-indigo" onclick="createProfile()"><i class="fas fa-plus"></i> Create Profile</button>`;
             return;
         }
         const skills = data.skills?.[0]?.skill || [];
         card.innerHTML = `
             <div style="display:flex;align-items:center;gap:1rem">
-                <div style="width:52px;height:52px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:white;flex-shrink:0">
+                <div style="width:52px;height:52px;background:linear-gradient(135deg,#00D4FF,#4FE0FF);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:white;flex-shrink:0">
                     ${(data.name?.[0]||email)[0].toUpperCase()}
                 </div>
                 <div>
-                    <p style="font-weight:800;font-size:1.05rem;color:#0f172a">${data.name?.[0]||"—"}</p>
-                    <p style="font-size:0.78rem;color:#94a3b8">${data.email?.[0]||email}</p>
-                    <p style="font-size:0.75rem;color:#64748b">${role==="student"?(data.program?.[0]||"")+" "+(data.joinYear?.[0]?`· Joined ${data.joinYear[0]}`:""):(data.company?.[0]||company||"Recruiter")}</p>
+                    <p style="font-weight:800;font-size:1.05rem;color:#E7ECF5">${data.name?.[0]||"—"}</p>
+                    <p style="font-size:0.78rem;color:#8892A8">${data.email?.[0]||email}</p>
+                    <p style="font-size:0.75rem;color:#7C879C">${role==="student"?(data.program?.[0]||"")+" "+(data.joinYear?.[0]?`· Joined ${data.joinYear[0]}`:""):(data.company?.[0]||company||"Recruiter")}</p>
                 </div>
             </div>
-            ${data.bio?.[0]?`<p style="color:#475569;font-size:0.85rem;margin-top:1rem;line-height:1.65">${data.bio[0]}</p>`:""}
+            ${data.bio?.[0]?`<p style="color:#A8B3C7;font-size:0.85rem;margin-top:1rem;line-height:1.65">${data.bio[0]}</p>`:""}
             <div style="display:flex;gap:0.65rem;margin-top:0.85rem;flex-wrap:wrap">
-                ${data.github?.[0]   ?`<a href="${data.github[0]}"   target="_blank" style="font-size:0.75rem;color:#4f46e5;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-github"></i>GitHub</a>`:""}
-                ${data.linkedin?.[0] ?`<a href="${data.linkedin[0]}" target="_blank" style="font-size:0.75rem;color:#4f46e5;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-linkedin"></i>LinkedIn</a>`:""}
-                ${data.portfolio?.[0]?`<a href="${data.portfolio[0]}" target="_blank" style="font-size:0.75rem;color:#4f46e5;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fas fa-globe"></i>Portfolio</a>`:""}
+                ${data.github?.[0]   ?`<a href="${data.github[0]}"   target="_blank" style="font-size:0.75rem;color:#00D4FF;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-github"></i>GitHub</a>`:""}
+                ${data.linkedin?.[0] ?`<a href="${data.linkedin[0]}" target="_blank" style="font-size:0.75rem;color:#00D4FF;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-linkedin"></i>LinkedIn</a>`:""}
+                ${data.portfolio?.[0]?`<a href="${data.portfolio[0]}" target="_blank" style="font-size:0.75rem;color:#00D4FF;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fas fa-globe"></i>Portfolio</a>`:""}
             </div>`;
         ["Bio","Phone","Github","Linkedin","Portfolio"].forEach(f=>{
             const el=document.getElementById(`profile${f}`);
@@ -299,9 +299,9 @@ async function loadProfileData() {
         const sl = document.getElementById("skillsList");
         if(sl) {
             sl.innerHTML = skills.length
-                ? skills.map(s=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#eef2ff;color:#4338ca;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700">
-                    ${s}<button onclick="deleteSkill('${s}')" style="background:none;border:none;cursor:pointer;color:#a5b4fc;font-size:14px;line-height:1;padding:0;margin-left:2px" title="Remove">×</button></span>`).join("")
-                : `<p style="color:#94a3b8;font-size:0.83rem">No skills added yet.</p>`;
+                ? skills.map(s=>`<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(59,130,246,0.14);color:#7CA8FF;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700">
+                    ${s}<button onclick="deleteSkill('${s}')" style="background:none;border:none;cursor:pointer;color:#4FE0FF;font-size:14px;line-height:1;padding:0;margin-left:2px" title="Remove">×</button></span>`).join("")
+                : `<p style="color:#8892A8;font-size:0.83rem">No skills added yet.</p>`;
         }
     } catch {
         const card=document.getElementById("profileCard");
@@ -363,7 +363,7 @@ async function deleteMyAccount() {
 // PITCH
 // ═══════════════════════════════════════════════════════════════════════════════
 function renderPitch(view) {
-    if(role==="recruiter"){view.innerHTML=`<p style="color:#94a3b8;text-align:center;margin-top:4rem">This section is for students.</p>`;return;}
+    if(role==="recruiter"){view.innerHTML=`<p style="color:#8892A8;text-align:center;margin-top:4rem">This section is for students.</p>`;return;}
     view.innerHTML=`
     <div style="max-width:600px;margin:0 auto">
         <div class="card">
@@ -408,7 +408,7 @@ function renderExplore(view) {
             ${role==="student"?`<button class="btn btn-indigo" onclick="loadModule('pitch')"><i class="fas fa-plus"></i> Pitch Yours</button>`:""}
         </div>
         <div id="startupGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">
-            <p style="color:#94a3b8;text-align:center;margin-top:3rem;grid-column:1/-1">Loading startups…</p>
+            <p style="color:#8892A8;text-align:center;margin-top:3rem;grid-column:1/-1">Loading startups…</p>
         </div>
     </div>`;
     loadStartups();
@@ -418,8 +418,8 @@ async function loadStartups() {
     try {
         const data = await (await fetch(`${API}/startup/all`)).json();
         const grid = document.getElementById("startupGrid");
-        if(!data.length){grid.innerHTML=`<p style="color:#94a3b8;text-align:center;margin-top:3rem;grid-column:1/-1">No startups yet.</p>`;return;}
-        const grads = [["#4f46e5","#7c3aed"],["#0891b2","#0e7490"],["#059669","#047857"],["#db2777","#be185d"],["#d97706","#b45309"]];
+        if(!data.length){grid.innerHTML=`<p style="color:#8892A8;text-align:center;margin-top:3rem;grid-column:1/-1">No startups yet.</p>`;return;}
+        const grads = [["#00D4FF","#00A8CC"],["#FBBF24","#D97706"],["#3B82F6","#7CA8FF"],["#0EA5C4","#0B4A56"],["#7C3AED","#5B21B6"]];
         grid.innerHTML = data.map((s,i)=>{
             const id=s.id?.[0]||"", title=s.title?.[0]||"Untitled", desc=s.description?.[0]||"";
             const creator=s.creator?.[0]||"", skills=s.requiredSkills?.[0]?.skill||[], members=s.team?.[0]?.member?.length||1;
@@ -431,21 +431,21 @@ async function loadStartups() {
                     <span style="background:rgba(255,255,255,0.2);color:white;padding:0.18rem 0.6rem;border-radius:9999px;font-size:0.65rem;font-weight:700;backdrop-filter:blur(6px)">${skills[0]||"Startup"}</span>
                 </div>
                 <div style="padding:1.1rem;flex:1;display:flex;flex-direction:column">
-                    <h4 style="font-weight:800;font-size:0.92rem;margin-bottom:0.25rem;color:#0f172a">${title}</h4>
-                    <p style="font-size:0.75rem;color:#94a3b8;margin-bottom:0.75rem;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${desc||"No description."}</p>
+                    <h4 style="font-weight:800;font-size:0.92rem;margin-bottom:0.25rem;color:#E7ECF5">${title}</h4>
+                    <p style="font-size:0.75rem;color:#8892A8;margin-bottom:0.75rem;flex:1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${desc||"No description."}</p>
                     <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.75rem">
-                        ${skills.slice(0,3).map(sk=>`<span class="tag" style="background:#eef2ff;color:#4338ca">${sk}</span>`).join("")}
-                        ${skills.length>3?`<span class="tag" style="background:#f1f5f9;color:#64748b">+${skills.length-3}</span>`:""}
+                        ${skills.slice(0,3).map(sk=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${sk}</span>`).join("")}
+                        ${skills.length>3?`<span class="tag" style="background:#1B2436;color:#7C879C">+${skills.length-3}</span>`:""}
                     </div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f1f5f9;padding-top:0.75rem">
-                        <span style="font-size:0.72rem;color:#94a3b8"><i class="fas fa-users" style="margin-right:4px"></i>${members} member${members!==1?"s":""}</span>
+                    <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #1B2436;padding-top:0.75rem">
+                        <span style="font-size:0.72rem;color:#8892A8"><i class="fas fa-users" style="margin-right:4px"></i>${members} member${members!==1?"s":""}</span>
                         <div style="display:flex;gap:0.4rem;align-items:center">
                             <button class="btn-sm-outline" onclick="viewStartup('${id}')"><i class="fas fa-eye"></i> View</button>
                             ${role==="student"?`<button class="btn-sm-outline" onclick="checkStartupGap('${id}','${title}')">Skill Gap</button>`:""}
                             ${isOwn
                                 ? `<button class="btn btn-red" style="padding:0.35rem 0.75rem;font-size:0.73rem" onclick="deleteStartup('${id}')"><i class="fas fa-trash"></i> Delete</button>`
                                 : role==="student" && isMember
-                                    ? `<button class="btn-sm-outline" style="border-color:#fecaca;color:#dc2626" onclick="leaveStartup('${id}')"><i class="fas fa-right-from-bracket"></i> Leave</button>`
+                                    ? `<button class="btn-sm-outline" style="border-color:rgba(239,68,68,0.3);color:#F87171" onclick="leaveStartup('${id}')"><i class="fas fa-right-from-bracket"></i> Leave</button>`
                                     : role==="student"
                                         ? `<button class="btn btn-slate" style="padding:0.35rem 0.75rem;font-size:0.73rem" onclick="joinStartup('${id}')">Join</button>`
                                         : ""
@@ -509,7 +509,7 @@ let _currentStartupId = null;
 
 async function viewStartup(id) {
     const view = document.getElementById("mainView");
-    view.innerHTML = `<p style="color:#94a3b8;text-align:center;margin-top:4rem">Loading…</p>`;
+    view.innerHTML = `<p style="color:#8892A8;text-align:center;margin-top:4rem">Loading…</p>`;
     let s;
     try {
         s = await (await fetch(`${API}/startup/${id}`)).json();
@@ -540,14 +540,14 @@ function renderStartupDetail(s) {
     <style>
     .msg-bubble { display:flex; gap:10px; margin-bottom:12px; }
     .msg-bubble.self { flex-direction:row-reverse; }
-    .msg-avatar { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;flex-shrink:0; background:#eef2ff;color:#4338ca; }
-    .msg-avatar.self { background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white; }
+    .msg-avatar { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;flex-shrink:0; background:rgba(59,130,246,0.14);color:#7CA8FF; }
+    .msg-avatar.self { background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016; }
     .msg-body { display:flex;flex-direction:column;gap:4px;max-width:72%; }
     .msg-body.self { align-items:flex-end; }
-    .msg-meta { display:flex;gap:8px;align-items:center;font-size:0.68rem;color:#94a3b8; }
+    .msg-meta { display:flex;gap:8px;align-items:center;font-size:0.68rem;color:#8892A8; }
     .msg-meta.self { flex-direction:row-reverse; }
-    .msg-bubble-text { padding:0.55rem 0.9rem;border-radius:14px;font-size:0.83rem;line-height:1.5; background:#f1f5f9;color:#1e293b;border-radius-top-left:4px; }
-    .msg-bubble-text.self { background:linear-gradient(135deg,#4f46e5,#6d28d9);color:white;border-radius-top-right:4px; }
+    .msg-bubble-text { padding:0.55rem 0.9rem;border-radius:14px;font-size:0.83rem;line-height:1.5; background:#1B2436;color:#E7ECF5;border-radius-top-left:4px; }
+    .msg-bubble-text.self { background:linear-gradient(135deg,#00D4FF,#00A8CC);color:#041016;border-radius-top-right:4px; }
     </style>
 
     <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:1rem">
@@ -557,38 +557,38 @@ function renderStartupDetail(s) {
         <div class="card">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:0.85rem">
                 <div>
-                    <h2 style="font-weight:800;font-size:1.2rem;color:#0f172a;letter-spacing:-0.02em">${title}</h2>
-                    <p style="font-size:0.75rem;color:#94a3b8;margin-top:2px">by ${creator}</p>
+                    <h2 style="font-weight:800;font-size:1.2rem;color:#E7ECF5;letter-spacing:-0.02em">${title}</h2>
+                    <p style="font-size:0.75rem;color:#8892A8;margin-top:2px">by ${creator}</p>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;justify-content:flex-end">
                     ${isOwn
-                        ? `<span class="tag" style="background:#eef2ff;color:#4338ca;flex-shrink:0">Your startup</span>
+                        ? `<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF;flex-shrink:0">Your startup</span>
                            <button class="btn btn-red" style="flex-shrink:0;padding:0.4rem 0.9rem;font-size:0.78rem" onclick="deleteStartup('${id}')"><i class="fas fa-trash"></i> Delete</button>`
                         : role==="student" && !isMember
                             ? `<button class="btn btn-slate" style="flex-shrink:0;padding:0.4rem 0.9rem;font-size:0.78rem" onclick="joinStartup('${id}')">Join</button>`
                             : isMember
-                                ? `<span class="tag" style="background:#f0fdf4;color:#15803d;flex-shrink:0">Member</span>
-                                   <button class="btn-sm-outline" style="border-color:#fecaca;color:#dc2626" onclick="leaveStartup('${id}')"><i class="fas fa-right-from-bracket"></i> Leave</button>`
+                                ? `<span class="tag" style="background:rgba(16,185,129,0.14);color:#34D399;flex-shrink:0">Member</span>
+                                   <button class="btn-sm-outline" style="border-color:rgba(239,68,68,0.3);color:#F87171" onclick="leaveStartup('${id}')"><i class="fas fa-right-from-bracket"></i> Leave</button>`
                                 : ""
                     }
                 </div>
             </div>
-            ${desc?`<p style="font-size:0.85rem;color:#475569;margin-bottom:1rem;line-height:1.65">${desc}</p>`:""}
+            ${desc?`<p style="font-size:0.85rem;color:#A8B3C7;margin-bottom:1rem;line-height:1.65">${desc}</p>`:""}
             ${skills.length?`
             <div style="margin-bottom:1rem">
-                <p style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem">Required Skills</p>
+                <p style="font-size:0.65rem;font-weight:700;color:#8892A8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem">Required Skills</p>
                 <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
-                    ${skills.map(sk=>`<span class="tag" style="background:#eef2ff;color:#4338ca">${sk}</span>`).join("")}
+                    ${skills.map(sk=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${sk}</span>`).join("")}
                 </div>
             </div>`:""}
             <div>
-                <p style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem">Team (${members.length})</p>
+                <p style="font-size:0.65rem;font-weight:700;color:#8892A8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.5rem">Team (${members.length})</p>
                 <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
                     ${members.map(m=>`
-                    <div style="display:flex;align-items:center;gap:0.5rem;background:#f8fafc;border:1px solid #eef0f5;border-radius:10px;padding:0.4rem 0.75rem">
-                        <div style="width:26px;height:26px;border-radius:7px;background:#eef2ff;color:#4338ca;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.7rem">${(m[0]||"?").toUpperCase()}</div>
-                        <span style="font-size:0.75rem;color:#475569">${m}</span>
-                        ${m===creator?`<span style="font-size:0.62rem;color:#818cf8;font-weight:700">founder</span>`:""}
+                    <div style="display:flex;align-items:center;gap:0.5rem;background:#1B2436;border:1px solid #232C42;border-radius:10px;padding:0.4rem 0.75rem">
+                        <div style="width:26px;height:26px;border-radius:7px;background:rgba(59,130,246,0.14);color:#7CA8FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.7rem">${(m[0]||"?").toUpperCase()}</div>
+                        <span style="font-size:0.75rem;color:#A8B3C7">${m}</span>
+                        ${m===creator?`<span style="font-size:0.62rem;color:#4FE0FF;font-weight:700">founder</span>`:""}
                     </div>`).join("")}
                 </div>
             </div>
@@ -596,14 +596,14 @@ function renderStartupDetail(s) {
 
         <div class="card" style="display:flex;flex-direction:column;gap:0">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-                <p style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;display:flex;align-items:center;gap:6px">
+                <p style="font-size:0.65rem;font-weight:700;color:#8892A8;text-transform:uppercase;letter-spacing:0.07em;display:flex;align-items:center;gap:6px">
                     <i class="fas fa-comments"></i> Live Chat
                     <span class="live-dot"></span>
                 </p>
-                <span style="font-size:0.68rem;color:#94a3b8;font-family:JetBrains Mono,monospace">real-time</span>
+                <span style="font-size:0.68rem;color:#8892A8;font-family:JetBrains Mono,monospace">real-time</span>
             </div>
 
-            ${canChat ? "" : `<div style="margin-bottom:1rem;background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;padding:0.75rem 0.9rem;border-radius:12px;font-size:0.78rem">Join this startup to participate in the team chat.</div>`}
+            ${canChat ? "" : `<div style="margin-bottom:1rem;background:rgba(0,212,255,0.14);border:1px solid rgba(245,158,11,0.3);color:#4FE0FF;padding:0.75rem 0.9rem;border-radius:12px;font-size:0.78rem">Join this startup to participate in the team chat.</div>`}
 
             <div id="msgList" style="min-height:180px;max-height:340px;overflow-y:auto;margin-bottom:1rem;padding-right:4px">
                 ${msgs.length ? msgs.map(m=>{
@@ -619,7 +619,7 @@ function renderStartupDetail(s) {
                             <div class="msg-bubble-text ${isSelf?"self":""}">${escHtml(text)}</div>
                         </div>
                     </div>`;
-                }).join("") : `<p style="color:#94a3b8;font-size:0.83rem;text-align:center;padding:2.5rem 0">No messages yet. Be the first! 👋</p>`}
+                }).join("") : `<p style="color:#8892A8;font-size:0.83rem;text-align:center;padding:2.5rem 0">No messages yet. Be the first! 👋</p>`}
             </div>
 
             <div style="display:flex;gap:0.65rem">
@@ -657,7 +657,7 @@ function renderJobs(view) {
                 ${role==="recruiter"?`<button class="btn btn-indigo" onclick="loadModule('postjob')"><i class="fas fa-plus"></i> Post Job</button>`:""}
             </div>
         </div>
-        <div id="jobsList"><p style="color:#94a3b8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
+        <div id="jobsList"><p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
     </div>`;
     loadJobs();
 }
@@ -674,19 +674,19 @@ function filterJobsLocal(q) {
 }
 function renderJobsList(jobs) {
     const el=document.getElementById("jobsList");
-    if(!jobs.length){el.innerHTML=`<p style="color:#94a3b8;font-size:0.83rem;text-align:center;margin-top:2rem">No jobs found.</p>`;return;}
+    if(!jobs.length){el.innerHTML=`<p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">No jobs found.</p>`;return;}
     el.innerHTML=`<div style="display:flex;flex-direction:column;gap:0.75rem">`+jobs.map(j=>{
         const skills=j.requiredSkills||[], isOwn=j.postedBy===email;
         return `<div class="card" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
                 <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:4px">
-                    <p style="font-weight:800;color:#0f172a;font-size:0.9rem">${j.title}</p>
-                    <span class="tag" style="background:#f1f5f9;color:#475569">${j.company}</span>
-                    ${j.applicantsCount?`<span class="tag" style="background:#f0fdf4;color:#15803d">${j.applicantsCount} applicant${j.applicantsCount!==1?"s":""}</span>`:""}
+                    <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${j.title}</p>
+                    <span class="tag" style="background:#1B2436;color:#A8B3C7">${j.company}</span>
+                    ${j.applicantsCount?`<span class="tag" style="background:rgba(16,185,129,0.14);color:#34D399">${j.applicantsCount} applicant${j.applicantsCount!==1?"s":""}</span>`:""}
                 </div>
-                <p style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.5rem">Posted by: ${j.postedBy}</p>
+                <p style="font-size:0.72rem;color:#8892A8;margin-bottom:0.5rem">Posted by: ${j.postedBy}</p>
                 <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
-                    ${skills.map(s=>`<span class="tag" style="background:#eef2ff;color:#4338ca">${s}</span>`).join("")}
+                    ${skills.map(s=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${s}</span>`).join("")}
                 </div>
             </div>
             <div style="display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap;align-items:center">
@@ -734,20 +734,20 @@ function showApplicantsModal(title, applicants) {
     modal.id="applicantsModal";
     modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem";
     modal.innerHTML=`
-    <div style="background:white;border-radius:20px;padding:1.75rem;max-width:460px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.2);max-height:80vh;overflow-y:auto">
+    <div style="background:#131A2A;border:1px solid #232C42;border-radius:20px;padding:1.75rem;max-width:460px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.5);max-height:80vh;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-            <h3 style="font-size:1rem;font-weight:800;color:#0f172a"><i class="fas fa-users" style="color:#4f46e5;margin-right:8px"></i>Applicants: ${title}</h3>
-            <button onclick="document.getElementById('applicantsModal').remove()" style="color:#94a3b8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
+            <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5"><i class="fas fa-users" style="color:#00D4FF;margin-right:8px"></i>Applicants: ${title}</h3>
+            <button onclick="document.getElementById('applicantsModal').remove()" style="color:#8892A8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
         </div>
-        ${!applicants.length?`<p style="color:#94a3b8;text-align:center;padding:2rem 0">No applicants yet.</p>`
+        ${!applicants.length?`<p style="color:#8892A8;text-align:center;padding:2rem 0">No applicants yet.</p>`
             :applicants.map(a=>`
-            <div style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem;border-radius:12px;background:#f8fafc;border:1px solid #eef0f5;margin-bottom:0.5rem">
-                <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a[0].toUpperCase()}</div>
-                <div style="flex:1;min-width:0"><p style="font-weight:700;color:#0f172a;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a}</p></div>
-                <a href="mailto:${a}" style="padding:0.35rem 0.75rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope" style="margin-right:4px"></i>Contact</a>
+            <div style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem;border-radius:12px;background:#1B2436;border:1px solid #232C42;margin-bottom:0.5rem">
+                <div style="width:38px;height:38px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a[0].toUpperCase()}</div>
+                <div style="flex:1;min-width:0"><p style="font-weight:700;color:#E7ECF5;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a}</p></div>
+                <a href="mailto:${a}" style="padding:0.35rem 0.75rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope" style="margin-right:4px"></i>Contact</a>
             </div>`).join("")}
-        <p style="color:#94a3b8;font-size:0.72rem;text-align:center;margin-top:0.75rem">${applicants.length} applicant${applicants.length!==1?"s":""} total</p>
-        <button onclick="document.getElementById('applicantsModal').remove()" style="width:100%;margin-top:1rem;background:#0f172a;color:white;padding:0.7rem;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-family:Outfit,sans-serif">Close</button>
+        <p style="color:#8892A8;font-size:0.72rem;text-align:center;margin-top:0.75rem">${applicants.length} applicant${applicants.length!==1?"s":""} total</p>
+        <button onclick="document.getElementById('applicantsModal').remove()" style="width:100%;margin-top:1rem;background:#1B2436;border:1px solid #232C42;color:#E7ECF5;padding:0.7rem;border-radius:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Close</button>
     </div>`;
     document.body.appendChild(modal);
 }
@@ -759,12 +759,12 @@ function renderPostJob(view) {
     view.innerHTML=`
     <div style="max-width:580px;margin:0 auto">
         <div class="card">
-            <p class="section-title"><i class="fas fa-plus-circle" style="color:#818cf8;margin-right:6px"></i>Post a New Job</p>
+            <p class="section-title"><i class="fas fa-plus-circle" style="color:#4FE0FF;margin-right:6px"></i>Post a New Job</p>
             <div style="display:flex;flex-direction:column;gap:0.85rem">
                 <input class="input-field" id="jobTitle" placeholder="Job Title *" required>
                 <input class="input-field" id="jobCompany" placeholder="Company Name *" value="${company}" required>
                 <input class="input-field" id="jobSkills" placeholder="Required Skills (comma-separated, e.g. React, Node, Python)">
-                <p style="font-size:0.75rem;color:#94a3b8;font-style:italic"><i class="fas fa-info-circle" style="margin-right:4px"></i>Students can check their skill gap against this listing.</p>
+                <p style="font-size:0.75rem;color:#8892A8;font-style:italic"><i class="fas fa-info-circle" style="margin-right:4px"></i>Students can check their skill gap against this listing.</p>
                 <button class="btn btn-indigo" style="padding:0.75rem;justify-content:center;font-size:0.88rem" onclick="postJob()">
                     <i class="fas fa-paper-plane"></i> Post Job
                 </button>
@@ -792,24 +792,24 @@ function renderMyJobs(view) {
             <p class="section-title" style="margin:0">My Posted Jobs</p>
             <button class="btn btn-indigo" onclick="loadModule('postjob')"><i class="fas fa-plus"></i> Post New</button>
         </div>
-        <div id="myJobsList"><p style="color:#94a3b8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
+        <div id="myJobsList"><p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
     </div>`;
     fetch(`${API}/jobs/my-jobs/${email}`).then(r=>r.json()).then(jobs=>{
         const el=document.getElementById("myJobsList");
         if(!el) return;
-        if(!jobs.length){el.innerHTML=`<p style="color:#94a3b8;font-size:0.83rem;text-align:center;margin-top:2rem">You haven't posted any jobs yet.</p>`;return;}
+        if(!jobs.length){el.innerHTML=`<p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">You haven't posted any jobs yet.</p>`;return;}
         el.innerHTML=`<div style="display:flex;flex-direction:column;gap:0.75rem">`+jobs.map(j=>{
-            const id=j.id?.[0]||"", title=j.title?.[0]||"", comp=j.company?.[0]||"";
-            const skills=j.requiredSkills?.[0]?.skill||[], appCount=j.applicants?.[0]?.applicant?.length||0;
+            const id=j.id||"", title=j.title||"", comp=j.company||"";
+            const skills=j.requiredSkills||[], appCount=j.applicantsCount||0;
             return `<div class="card" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
                 <div style="flex:1;min-width:180px">
                     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:4px">
-                        <p style="font-weight:800;color:#0f172a;font-size:0.9rem">${title}</p>
-                        <span class="tag" style="background:#f1f5f9;color:#475569">${comp}</span>
-                        <span class="tag" style="${appCount>0?"background:#f0fdf4;color:#15803d":"background:#f1f5f9;color:#94a3b8"}">${appCount} applicant${appCount!==1?"s":""}</span>
+                        <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${title}</p>
+                        <span class="tag" style="background:#1B2436;color:#A8B3C7">${comp}</span>
+                        <span class="tag" style="${appCount>0?"background:rgba(16,185,129,0.14);color:#34D399":"background:#1B2436;color:#8892A8"}">${appCount} applicant${appCount!==1?"s":""}</span>
                     </div>
                     <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.5rem">
-                        ${skills.map(s=>`<span class="tag" style="background:#eef2ff;color:#4338ca">${s}</span>`).join("")}
+                        ${skills.map(s=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${s}</span>`).join("")}
                     </div>
                 </div>
                 <div style="display:flex;gap:0.4rem;flex-shrink:0">
@@ -835,16 +835,16 @@ function renderMyApplications(view) {
     view.innerHTML=`
     <div>
         <p class="section-title">My Applications</p>
-        <div id="myAppsList"><p style="color:#94a3b8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
+        <div id="myAppsList"><p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
     </div>`;
     fetch(`${API}/jobs/my-applications/${email}`).then(r=>r.json()).then(appliedJobs=>{
         const el=document.getElementById("myAppsList");
         if(!el) return;
         if(!appliedJobs.length){
             el.innerHTML=`<div class="card" style="text-align:center;padding:3rem 1rem">
-                <i class="fas fa-paper-plane" style="font-size:2.5rem;color:#e2e8f0;margin-bottom:1rem;display:block"></i>
-                <p style="font-weight:700;color:#475569">No applications yet.</p>
-                <p style="color:#94a3b8;font-size:0.83rem;margin:0.5rem 0 1.25rem">Browse jobs and hit Apply to get started.</p>
+                <i class="fas fa-paper-plane" style="font-size:2.5rem;color:#232C42;margin-bottom:1rem;display:block"></i>
+                <p style="font-weight:700;color:#A8B3C7">No applications yet.</p>
+                <p style="color:#8892A8;font-size:0.83rem;margin:0.5rem 0 1.25rem">Browse jobs and hit Apply to get started.</p>
                 <button class="btn btn-indigo" onclick="loadModule('jobs')">Browse Jobs</button>
             </div>`;
             return;
@@ -853,13 +853,13 @@ function renderMyApplications(view) {
             <div class="card" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
                 <div style="flex:1;min-width:180px">
                     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:4px">
-                        <p style="font-weight:800;color:#0f172a;font-size:0.9rem">${j.title}</p>
-                        <span class="tag" style="background:#f1f5f9;color:#475569">${j.company}</span>
-                        <span class="tag" style="background:#f0fdf4;color:#15803d"><i class="fas fa-check" style="margin-right:3px"></i>Applied</span>
+                        <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${j.title}</p>
+                        <span class="tag" style="background:#1B2436;color:#A8B3C7">${j.company}</span>
+                        <span class="tag" style="background:rgba(16,185,129,0.14);color:#34D399"><i class="fas fa-check" style="margin-right:3px"></i>Applied</span>
                     </div>
-                    <p style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.5rem">Posted by: ${j.postedBy}</p>
+                    <p style="font-size:0.72rem;color:#8892A8;margin-bottom:0.5rem">Posted by: ${j.postedBy}</p>
                     <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
-                        ${(j.requiredSkills||[]).map(s=>`<span class="tag" style="background:#eef2ff;color:#4338ca">${s}</span>`).join("")}
+                        ${(j.requiredSkills||[]).map(s=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${s}</span>`).join("")}
                     </div>
                 </div>
                 <div style="display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap">
@@ -881,7 +881,7 @@ function renderStudentProfiles(view) {
             <input class="input-field" id="profileSearch" placeholder="Search by skill or name…" style="max-width:220px" oninput="searchProfiles(this.value)">
         </div>
         <div id="profilesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem">
-            <p style="color:#94a3b8;text-align:center;margin-top:3rem;grid-column:1/-1">Loading profiles…</p>
+            <p style="color:#8892A8;text-align:center;margin-top:3rem;grid-column:1/-1">Loading profiles…</p>
         </div>
     </div>`;
     loadAllProfiles();
@@ -901,28 +901,28 @@ function searchProfiles(q) {
 }
 function renderProfilesGrid(profiles) {
     const grid=document.getElementById("profilesGrid");
-    if(!profiles.length){grid.innerHTML=`<p style="color:#94a3b8;text-align:center;margin-top:3rem;grid-column:1/-1">No profiles found.</p>`;return;}
+    if(!profiles.length){grid.innerHTML=`<p style="color:#8892A8;text-align:center;margin-top:3rem;grid-column:1/-1">No profiles found.</p>`;return;}
     grid.innerHTML=profiles.map(p=>{
         const skills=p.skills?.[0]?.skill||[], name=p.name?.[0]||"Unknown", pEmail=p.email?.[0]||"", prog=p.program?.[0]||"";
         return `<div class="card">
             <div style="display:flex;align-items:center;gap:0.85rem;margin-bottom:0.85rem">
-                <div style="width:44px;height:44px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#4338ca;border-radius:13px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;flex-shrink:0">${name[0].toUpperCase()}</div>
+                <div style="width:44px;height:44px;background:linear-gradient(135deg,rgba(59,130,246,0.14),rgba(59,130,246,0.14));color:#7CA8FF;border-radius:13px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;flex-shrink:0">${name[0].toUpperCase()}</div>
                 <div style="min-width:0">
-                    <p style="font-weight:800;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</p>
-                    <p style="font-size:0.72rem;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pEmail}</p>
-                    ${prog?`<p style="font-size:0.72rem;color:#64748b">${prog}</p>`:""}
+                    <p style="font-weight:800;color:#E7ECF5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</p>
+                    <p style="font-size:0.72rem;color:#8892A8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pEmail}</p>
+                    ${prog?`<p style="font-size:0.72rem;color:#7C879C">${prog}</p>`:""}
                 </div>
             </div>
-            ${p.bio?.[0]?`<p style="font-size:0.77rem;color:#475569;margin-bottom:0.75rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${p.bio[0]}</p>`:""}
+            ${p.bio?.[0]?`<p style="font-size:0.77rem;color:#A8B3C7;margin-bottom:0.75rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${p.bio[0]}</p>`:""}
             <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.85rem">
-                ${skills.slice(0,4).map(s=>`<span class="tag" style="background:#eef2ff;color:#4338ca">${s}</span>`).join("")}
-                ${skills.length>4?`<span class="tag" style="background:#f1f5f9;color:#64748b">+${skills.length-4}</span>`:""}
-                ${!skills.length?`<span style="font-size:0.75rem;color:#94a3b8">No skills listed</span>`:""}
+                ${skills.slice(0,4).map(s=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${s}</span>`).join("")}
+                ${skills.length>4?`<span class="tag" style="background:#1B2436;color:#7C879C">+${skills.length-4}</span>`:""}
+                ${!skills.length?`<span style="font-size:0.75rem;color:#8892A8">No skills listed</span>`:""}
             </div>
-            <div style="display:flex;gap:0.4rem;border-top:1px solid #f1f5f9;padding-top:0.75rem;flex-wrap:wrap">
+            <div style="display:flex;gap:0.4rem;border-top:1px solid #1B2436;padding-top:0.75rem;flex-wrap:wrap">
                 ${p.github?.[0]?`<a href="${p.github[0]}" target="_blank" class="btn-sm-outline"><i class="fab fa-github"></i> GitHub</a>`:""}
                 ${p.linkedin?.[0]?`<a href="${p.linkedin[0]}" target="_blank" class="btn-sm-outline"><i class="fab fa-linkedin"></i> LinkedIn</a>`:""}
-                <a href="mailto:${pEmail}" style="padding:0.38rem 0.8rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto"><i class="fas fa-envelope"></i> Contact</a>
+                <a href="mailto:${pEmail}" style="padding:0.38rem 0.8rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:white;text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto"><i class="fas fa-envelope"></i> Contact</a>
             </div>
         </div>`;
     }).join("");
@@ -935,16 +935,16 @@ function showGapModal(title, required, missing, userSkills) {
     const have  = (required||[]).filter(s=>!(missing||[]).includes(s));
     const pct   = required?.length ? Math.round((have.length/required.length)*100) : 100;
     const color = pct>=70?"#10b981":pct>=40?"#f59e0b":"#ef4444";
-    const bg    = pct>=70?"#f0fdf4":pct>=40?"#fffbeb":"#fef2f2";
+    const bg    = pct>=70?"rgba(16,185,129,0.14)":pct>=40?"rgba(245,158,11,0.14)":"rgba(239,68,68,0.12)";
 
     const modal=document.createElement("div");
     modal.id="gapModal";
     modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem";
     modal.innerHTML=`
-    <div style="background:white;border-radius:22px;padding:2rem;max-width:440px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,0.25)">
+    <div style="background:#131A2A;border:1px solid #232C42;border-radius:22px;padding:2rem;max-width:440px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,0.5)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-            <h3 style="font-size:1rem;font-weight:800;color:#0f172a;letter-spacing:-0.02em">Skill Gap: ${title}</h3>
-            <button onclick="document.getElementById('gapModal').remove()" style="color:#94a3b8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
+            <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5;letter-spacing:-0.02em">Skill Gap: ${title}</h3>
+            <button onclick="document.getElementById('gapModal').remove()" style="color:#8892A8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
         </div>
         <div style="text-align:center;margin-bottom:1.5rem">
             <div style="width:88px;height:88px;border-radius:50%;border:6px solid ${color};background:${bg};display:inline-flex;align-items:center;justify-content:center;flex-direction:column">
@@ -954,20 +954,20 @@ function showGapModal(title, required, missing, userSkills) {
         </div>
         ${(missing||[]).length?`
         <div style="margin-bottom:1rem">
-            <p style="font-size:0.65rem;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.5rem">Missing (${missing.length})</p>
+            <p style="font-size:0.65rem;font-weight:700;color:#F87171;text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.5rem">Missing (${missing.length})</p>
             <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
-                ${missing.map(s=>`<span style="background:#fef2f2;color:#dc2626;padding:0.2rem 0.65rem;border-radius:9999px;font-size:0.75rem;font-weight:700">${s}</span>`).join("")}
+                ${missing.map(s=>`<span style="background:rgba(239,68,68,0.12);color:#F87171;padding:0.2rem 0.65rem;border-radius:9999px;font-size:0.75rem;font-weight:700">${s}</span>`).join("")}
             </div>
         </div>`:""}
         ${have.length?`
         <div style="margin-bottom:0.5rem">
-            <p style="font-size:0.65rem;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.5rem">You Have (${have.length})</p>
+            <p style="font-size:0.65rem;font-weight:700;color:#34D399;text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.5rem">You Have (${have.length})</p>
             <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
-                ${have.map(s=>`<span style="background:#f0fdf4;color:#16a34a;padding:0.2rem 0.65rem;border-radius:9999px;font-size:0.75rem;font-weight:700">${s}</span>`).join("")}
+                ${have.map(s=>`<span style="background:rgba(16,185,129,0.14);color:#34D399;padding:0.2rem 0.65rem;border-radius:9999px;font-size:0.75rem;font-weight:700">${s}</span>`).join("")}
             </div>
         </div>`:""}
-        ${!required?.length?`<p style="color:#94a3b8;text-align:center;font-size:0.85rem">No specific skills listed.</p>`:""}
-        <button onclick="document.getElementById('gapModal').remove()" style="width:100%;margin-top:1.5rem;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;padding:0.75rem;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-family:Outfit,sans-serif;font-size:0.88rem">
+        ${!required?.length?`<p style="color:#8892A8;text-align:center;font-size:0.85rem">No specific skills listed.</p>`:""}
+        <button onclick="document.getElementById('gapModal').remove()" style="width:100%;margin-top:1.5rem;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;padding:0.75rem;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-family:Inter,sans-serif;font-size:0.88rem">
             Close
         </button>
     </div>`;
