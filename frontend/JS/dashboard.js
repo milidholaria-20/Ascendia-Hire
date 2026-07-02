@@ -261,6 +261,10 @@ function renderProfile(view) {
             </div>
         </div>
     </div>`;
+    if (role === "student") {
+        const skillInputEl = document.getElementById("skillInput");
+        if (skillInputEl) attachSingleSkillAutocomplete(skillInputEl);
+    }
     loadProfileData();
 }
 
@@ -324,12 +328,14 @@ async function addSkill() {
     const data = await (await fetch(`${API}/profile/add-skill`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,skill})})).json();
     toast(data.message, data.message!=="Skill added successfully");
     document.getElementById("skillInput").value="";
+    _myProfileSkills = null; // invalidate cache so job match % recalculates next time
     loadProfileData();
 }
 
 async function deleteSkill(skill) {
     const data = await (await fetch(`${API}/profile/delete-skill`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,skill})})).json();
     toast(data.message);
+    _myProfileSkills = null; // invalidate cache so job match % recalculates next time
     loadProfileData();
 }
 
@@ -386,6 +392,8 @@ function renderPitch(view) {
             </div>
         </div>
     </div>`;
+    const pitchSkillsEl = document.getElementById("pitchSkills");
+    if (pitchSkillsEl) attachMultiSkillAutocomplete(pitchSkillsEl);
 }
 
 async function submitPitch() {
@@ -663,9 +671,36 @@ function renderJobs(view) {
 }
 
 let _allJobs=[];
+let _myProfileSkills=null; // cached so we don't refetch on every render
+
+async function ensureMyProfileSkills() {
+    if (role !== "student") return [];
+    if (_myProfileSkills !== null) return _myProfileSkills;
+    try {
+        const data = await (await fetch(`${API}/profile/${email}`)).json();
+        _myProfileSkills = data.skills?.[0]?.skill || [];
+    } catch { _myProfileSkills = []; }
+    return _myProfileSkills;
+}
+
+function computeMatchPercent(requiredSkills, userSkills) {
+    if (!requiredSkills || !requiredSkills.length) return null; // no skills listed -> no badge
+    const normalize = s => s.trim().toLowerCase();
+    const userNorm = (userSkills || []).map(normalize);
+    const matched = requiredSkills.filter(s => userNorm.includes(normalize(s)));
+    return Math.round((matched.length / requiredSkills.length) * 100);
+}
+
+function matchBadgeStyle(pct) {
+    if (pct >= 70) return "background:rgba(16,185,129,0.16);color:#34D399";
+    if (pct >= 40) return "background:rgba(245,158,11,0.16);color:#FBBF24";
+    return "background:rgba(239,68,68,0.16);color:#F87171";
+}
+
 async function loadJobs() {
     try {
         _allJobs = await (await fetch(`${API}/jobs/all`)).json();
+        await ensureMyProfileSkills();
         renderJobsList(_allJobs);
     } catch { const el=document.getElementById("jobsList"); if(el) el.innerHTML=`<p style="color:#ef4444;font-size:0.83rem">Could not load jobs.</p>`; }
 }
@@ -677,12 +712,14 @@ function renderJobsList(jobs) {
     if(!jobs.length){el.innerHTML=`<p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">No jobs found.</p>`;return;}
     el.innerHTML=`<div style="display:flex;flex-direction:column;gap:0.75rem">`+jobs.map(j=>{
         const skills=j.requiredSkills||[], isOwn=j.postedBy===email;
+        const matchPct = role==="student" ? computeMatchPercent(skills, _myProfileSkills) : null;
         return `<div class="card" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
                 <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:4px">
                     <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${j.title}</p>
                     <span class="tag" style="background:#1B2436;color:#A8B3C7">${j.company}</span>
                     ${j.applicantsCount?`<span class="tag" style="background:rgba(16,185,129,0.14);color:#34D399">${j.applicantsCount} applicant${j.applicantsCount!==1?"s":""}</span>`:""}
+                    ${matchPct!==null?`<span class="tag" style="${matchBadgeStyle(matchPct)}"><i class="fas fa-bullseye" style="margin-right:3px"></i>${matchPct}% match</span>`:""}
                 </div>
                 <p style="font-size:0.72rem;color:#8892A8;margin-bottom:0.5rem">Posted by: ${j.postedBy}</p>
                 <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
@@ -726,30 +763,62 @@ async function checkJobGap(id, title) {
 async function viewApplicants(jobId, jobTitle) {
     const data = await (await fetch(`${API}/jobs/applicants/${jobId}/${email}`)).json();
     if(data.message){toast(data.message,true);return;}
-    showApplicantsModal(jobTitle,data);
+    showApplicantsModal(jobId,jobTitle,data);
 }
 
-function showApplicantsModal(title, applicants) {
+const STATUS_STYLES = {
+    Applied:     "background:rgba(59,130,246,0.16);color:#7CA8FF",
+    Reviewed:    "background:rgba(245,158,11,0.16);color:#FBBF24",
+    Shortlisted: "background:rgba(0,212,255,0.16);color:#4FE0FF",
+    Offered:     "background:rgba(16,185,129,0.16);color:#34D399",
+    Rejected:    "background:rgba(239,68,68,0.16);color:#F87171"
+};
+const STATUS_OPTIONS = ["Applied","Reviewed","Shortlisted","Rejected","Offered"];
+
+function showApplicantsModal(jobId, title, applicants) {
     const modal=document.createElement("div");
     modal.id="applicantsModal";
     modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem";
     modal.innerHTML=`
-    <div style="background:#131A2A;border:1px solid #232C42;border-radius:20px;padding:1.75rem;max-width:460px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.5);max-height:80vh;overflow-y:auto">
+    <div style="background:#131A2A;border:1px solid #232C42;border-radius:20px;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.5);max-height:80vh;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
             <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5"><i class="fas fa-users" style="color:#00D4FF;margin-right:8px"></i>Applicants: ${title}</h3>
             <button onclick="document.getElementById('applicantsModal').remove()" style="color:#8892A8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
         </div>
         ${!applicants.length?`<p style="color:#8892A8;text-align:center;padding:2rem 0">No applicants yet.</p>`
-            :applicants.map(a=>`
-            <div style="display:flex;align-items:center;gap:0.85rem;padding:0.75rem;border-radius:12px;background:#1B2436;border:1px solid #232C42;margin-bottom:0.5rem">
-                <div style="width:38px;height:38px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a[0].toUpperCase()}</div>
-                <div style="flex:1;min-width:0"><p style="font-weight:700;color:#E7ECF5;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a}</p></div>
-                <a href="mailto:${a}" style="padding:0.35rem 0.75rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope" style="margin-right:4px"></i>Contact</a>
-            </div>`).join("")}
+            :applicants.map(a=>{
+                const st = a.status || "Applied";
+                return `
+            <div style="display:flex;align-items:center;gap:0.7rem;padding:0.75rem;border-radius:12px;background:#1B2436;border:1px solid #232C42;margin-bottom:0.5rem;flex-wrap:wrap">
+                <div style="width:38px;height:38px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a.email[0].toUpperCase()}</div>
+                <div style="flex:1;min-width:120px">
+                    <p style="font-weight:700;color:#E7ECF5;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.email}</p>
+                    <span class="tag" style="${STATUS_STYLES[st]}">${st}</span>
+                </div>
+                <select class="input-field" style="width:auto;padding:0.4rem 0.6rem;font-size:0.75rem" onchange="updateApplicantStatus('${jobId}','${a.email}',this.value,'${title.replace(/'/g,"\\'")}')">
+                    ${STATUS_OPTIONS.map(opt=>`<option value="${opt}" ${opt===st?"selected":""}>${opt}</option>`).join("")}
+                </select>
+                <a href="mailto:${a.email}" style="padding:0.35rem 0.6rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope"></i></a>
+            </div>`;}).join("")}
         <p style="color:#8892A8;font-size:0.72rem;text-align:center;margin-top:0.75rem">${applicants.length} applicant${applicants.length!==1?"s":""} total</p>
         <button onclick="document.getElementById('applicantsModal').remove()" style="width:100%;margin-top:1rem;background:#1B2436;border:1px solid #232C42;color:#E7ECF5;padding:0.7rem;border-radius:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Close</button>
     </div>`;
     document.body.appendChild(modal);
+}
+
+async function updateApplicantStatus(jobId, studentEmail, newStatus, jobTitle) {
+    try {
+        const data = await (await fetch(`${API}/jobs/applicants/status`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId,recruiterEmail:email,studentEmail,status:newStatus})})).json();
+        if(data.message==="Status updated"){
+            toast(`${studentEmail.split("@")[0]} → ${newStatus}`);
+            // refresh the modal in place so the badge updates immediately
+            const refreshed = await (await fetch(`${API}/jobs/applicants/${jobId}/${email}`)).json();
+            document.getElementById("applicantsModal")?.remove();
+            showApplicantsModal(jobId, jobTitle, refreshed);
+        } else {
+            toast(data.message||"Could not update status", true);
+        }
+    } catch { toast("Could not update status", true); }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -771,6 +840,8 @@ function renderPostJob(view) {
             </div>
         </div>
     </div>`;
+    const jobSkillsEl = document.getElementById("jobSkills");
+    if (jobSkillsEl) attachMultiSkillAutocomplete(jobSkillsEl);
 }
 
 async function postJob() {
@@ -849,13 +920,16 @@ function renderMyApplications(view) {
             </div>`;
             return;
         }
-        el.innerHTML=`<div style="display:flex;flex-direction:column;gap:0.75rem">`+appliedJobs.map(j=>`
+        el.innerHTML=`<div style="display:flex;flex-direction:column;gap:0.75rem">`+appliedJobs.map(j=>{
+            const st = j.myStatus || "Applied";
+            const statusIcon = { Applied:"fa-check", Reviewed:"fa-eye", Shortlisted:"fa-star", Offered:"fa-trophy", Rejected:"fa-xmark" }[st] || "fa-check";
+            return `
             <div class="card" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
                 <div style="flex:1;min-width:180px">
                     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:4px">
                         <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${j.title}</p>
                         <span class="tag" style="background:#1B2436;color:#A8B3C7">${j.company}</span>
-                        <span class="tag" style="background:rgba(16,185,129,0.14);color:#34D399"><i class="fas fa-check" style="margin-right:3px"></i>Applied</span>
+                        <span class="tag" style="${STATUS_STYLES[st]}"><i class="fas ${statusIcon}" style="margin-right:3px"></i>${st}</span>
                     </div>
                     <p style="font-size:0.72rem;color:#8892A8;margin-bottom:0.5rem">Posted by: ${j.postedBy}</p>
                     <div style="display:flex;flex-wrap:wrap;gap:0.3rem">
@@ -866,7 +940,8 @@ function renderMyApplications(view) {
                     <button class="btn-sm-outline" onclick="checkJobGap('${j.id}','${j.title}')"><i class="fas fa-chart-bar"></i> Skill Gap</button>
                     <a href="mailto:${j.postedBy}" class="btn btn-slate" style="padding:0.38rem 0.85rem;font-size:0.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><i class="fas fa-envelope"></i>Contact</a>
                 </div>
-            </div>`).join("")+`</div>`;
+            </div>`;
+        }).join("")+`</div>`;
     }).catch(()=>{const el=document.getElementById("myAppsList");if(el)el.innerHTML=`<p style="color:#ef4444;font-size:0.83rem">Could not load.</p>`;});
 }
 
@@ -972,6 +1047,95 @@ function showGapModal(title, required, missing, userSkills) {
         </button>
     </div>`;
     document.body.appendChild(modal);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKILL AUTOCOMPLETE
+// ═══════════════════════════════════════════════════════════════════════════════
+const MASTER_SKILLS = [
+    "React","React Native","Angular","Vue.js","Next.js","Svelte","HTML","CSS","Tailwind CSS",
+    "Bootstrap","JavaScript","TypeScript","jQuery","Redux","Node.js","Express.js","Django",
+    "Flask","FastAPI","Spring Boot","Ruby on Rails","PHP","Laravel","ASP.NET",".NET Core",
+    "Python","Java","C","C++","C#","Go","Rust","Kotlin","Swift","Scala","R","MATLAB",
+    "MySQL","PostgreSQL","MongoDB","SQLite","Redis","Firebase","Supabase","GraphQL","REST API",
+    "Docker","Kubernetes","AWS","Azure","Google Cloud Platform","CI/CD","Jenkins","Git","GitHub",
+    "Linux","Bash","Nginx","Terraform","Ansible","Machine Learning","Deep Learning",
+    "Natural Language Processing","Computer Vision","TensorFlow","PyTorch","Scikit-learn",
+    "Pandas","NumPy","Data Analysis","Data Visualization","Power BI","Tableau","Excel",
+    "Android Development","iOS Development","Flutter","Socket.IO","WebSockets","GraphQL",
+    "Microservices","System Design","OOP","DSA","Algorithms","Operating Systems",
+    "Computer Networks","DBMS","Blockchain","Solidity","Web3","Cybersecurity","Penetration Testing",
+    "UI/UX Design","Figma","Adobe XD","Photoshop","Product Management","Agile","Scrum",
+    "Unit Testing","Jest","Cypress","Selenium","Postman","GraphQL","Webpack","Vite",
+    "Three.js","D3.js","Chart.js","Prisma","Sequelize","Mongoose","Apache Kafka","RabbitMQ",
+    "Elasticsearch","Machine Learning Ops","Data Structures","Cloud Computing","Serverless"
+];
+
+function getSkillMatches(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const starts = MASTER_SKILLS.filter(s => s.toLowerCase().startsWith(q));
+    const contains = MASTER_SKILLS.filter(s => !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
+    return [...starts, ...contains].slice(0, 6);
+}
+
+function buildSuggestionBox(inputEl) {
+    let box = document.getElementById(inputEl.id + "_suggest");
+    if (box) return box;
+    box = document.createElement("div");
+    box.id = inputEl.id + "_suggest";
+    box.style.cssText = "position:absolute;z-index:200;background:#131A2A;border:1px solid #232C42;border-radius:10px;margin-top:4px;box-shadow:0 12px 30px rgba(0,0,0,0.4);max-height:220px;overflow-y:auto;display:none;";
+    document.body.appendChild(box);
+    return box;
+}
+
+function positionSuggestionBox(inputEl, box) {
+    const rect = inputEl.getBoundingClientRect();
+    box.style.left  = (rect.left + window.scrollX) + "px";
+    box.style.top   = (rect.bottom + window.scrollY + 4) + "px";
+    box.style.width = rect.width + "px";
+}
+
+function renderSuggestions(box, matches, onPick) {
+    if (!matches.length) { box.style.display = "none"; return; }
+    box.innerHTML = matches.map(s => `
+        <div class="skill-suggest-item" style="padding:0.55rem 0.85rem;font-size:0.82rem;color:#E7ECF5;cursor:pointer;border-bottom:1px solid #1B2436" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">${s}</div>
+    `).join("");
+    [...box.children].forEach((el, i) => {
+        el.onmousedown = (e) => { e.preventDefault(); onPick(matches[i]); box.style.display = "none"; };
+    });
+    box.style.display = "block";
+}
+
+// Single-value autocomplete (Profile "Add a skill" box)
+function attachSingleSkillAutocomplete(inputEl) {
+    const box = buildSuggestionBox(inputEl);
+    inputEl.addEventListener("input", () => {
+        const matches = getSkillMatches(inputEl.value);
+        positionSuggestionBox(inputEl, box);
+        renderSuggestions(box, matches, (picked) => { inputEl.value = picked; inputEl.focus(); });
+    });
+    inputEl.addEventListener("blur", () => setTimeout(() => box.style.display = "none", 150));
+}
+
+// Comma-aware autocomplete (Post Job / Pitch Startup "Required Skills" fields)
+function attachMultiSkillAutocomplete(inputEl) {
+    const box = buildSuggestionBox(inputEl);
+    inputEl.addEventListener("input", () => {
+        const parts = inputEl.value.split(",");
+        const currentSegment = parts[parts.length - 1];
+        const matches = getSkillMatches(currentSegment);
+        positionSuggestionBox(inputEl, box);
+        renderSuggestions(box, matches, (picked) => {
+            parts[parts.length - 1] = " " + picked;
+            inputEl.value = parts.map((p, i) => i === 0 ? p.trim() : p).join(",").replace(/^,\s*/, "").trim();
+            // rebuild cleanly: join non-empty trimmed parts with ", " then a trailing ", " to continue typing
+            const cleanParts = inputEl.value.split(",").map(p => p.trim()).filter(Boolean);
+            inputEl.value = cleanParts.join(", ") + ", ";
+            inputEl.focus();
+        });
+    });
+    inputEl.addEventListener("blur", () => setTimeout(() => box.style.display = "none", 150));
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────────────

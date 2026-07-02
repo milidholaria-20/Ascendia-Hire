@@ -1,6 +1,8 @@
 const express = require("express");
 const Job     = require("../models/Job");
 const Profile = require("../models/Profile");
+const User    = require("../models/User");
+const { sendJobMatchEmail } = require("../mailer");
 
 const router = express.Router();
 
@@ -14,6 +16,43 @@ function toJobDTO(job) {
         applicantsCount: job.applicants?.length || 0,
         requiredSkills: job.requiredSkills || []
     };
+}
+
+// Finds every student whose profile skills overlap (case-insensitively) with
+// the job's required skills, and emails each one. Runs AFTER the response is
+// already sent — never delays "Job posted successfully".
+async function notifyMatchingStudents(job) {
+    if (!job.requiredSkills?.length) return;
+
+    try {
+        const normalize = s => s.trim().toLowerCase();
+        const requiredNorm = job.requiredSkills.map(normalize);
+
+        // $elemMatch + $in with a case-insensitive regex per skill would need
+        // an aggregation; for a college-project-scale dataset, fetching all
+        // student profiles and filtering in JS is simpler and fast enough.
+        const studentUsers  = await User.find({ role: "student" }, "email name");
+        const emailToName   = new Map(studentUsers.map(u => [u.email, u.name]));
+
+        const profiles = await Profile.find({ email: { $in: [...emailToName.keys()] } });
+
+        for (const profile of profiles) {
+            const userSkillsNorm = (profile.skills || []).map(normalize);
+            const matched = job.requiredSkills.filter(s => userSkillsNorm.includes(normalize(s)));
+            if (matched.length === 0) continue; // no overlap — skip
+
+            // Fire-and-forget: intentionally not awaited in the caller
+            sendJobMatchEmail({
+                to: profile.email,
+                studentName: emailToName.get(profile.email) || "",
+                jobTitle: job.title,
+                company: job.company,
+                matchedSkills: matched
+            });
+        }
+    } catch (err) {
+        console.error("notifyMatchingStudents error:", err.message);
+    }
 }
 
 // ================= POST JOB =================
@@ -33,6 +72,9 @@ router.post("/post", async (req, res) => {
         });
         await job.save();
         res.json({ message: "Job posted successfully" });
+
+        // Runs after the response above — student never waits on email sending
+        notifyMatchingStudents(job);
     } catch (err) {
         console.error("Post job error:", err);
         res.status(500).json({ message: "Error posting job" });
@@ -52,18 +94,19 @@ router.get("/all", async (req, res) => {
 // ================= APPLY JOB =================
 router.post("/apply", async (req, res) => {
     const { jobId, email } = req.body;
+    const studentEmail = email.toLowerCase();
 
     try {
         const job = await Job.findById(jobId);
         if (!job) return res.json({ message: "Job not found" });
-        if (job.postedBy === email.toLowerCase()) {
+        if (job.postedBy === studentEmail) {
             return res.json({ message: "Cannot apply to your own job" });
         }
-        if (job.applicants.includes(email.toLowerCase())) {
+        if (job.applicants.some(a => a.email === studentEmail)) {
             return res.json({ message: "Already applied" });
         }
 
-        job.applicants.push(email.toLowerCase());
+        job.applicants.push({ email: studentEmail, status: "Applied", appliedAt: new Date() });
         await job.save();
         res.json({ message: "Applied successfully" });
     } catch (err) {
@@ -81,9 +124,40 @@ router.get("/applicants/:jobId/:email", async (req, res) => {
         if (job.postedBy !== email.toLowerCase()) {
             return res.json({ message: "Access denied" });
         }
+        // Each applicant now carries { email, status, appliedAt } — sub-documents
+        // serialize to plain objects automatically via res.json()
         res.json(job.applicants || []);
     } catch (err) {
         res.status(500).json({ message: "Error reading applicants" });
+    }
+});
+
+// ================= UPDATE APPLICANT STATUS =================
+const VALID_STATUSES = ["Applied", "Reviewed", "Shortlisted", "Rejected", "Offered"];
+
+router.post("/applicants/status", async (req, res) => {
+    const { jobId, recruiterEmail, studentEmail, status } = req.body;
+
+    if (!VALID_STATUSES.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+    }
+
+    try {
+        const job = await Job.findById(jobId);
+        if (!job) return res.json({ message: "Job not found" });
+        if (job.postedBy !== recruiterEmail.toLowerCase()) {
+            return res.status(403).json({ message: "Access denied" });
+        }
+
+        const applicant = job.applicants.find(a => a.email === studentEmail.toLowerCase());
+        if (!applicant) return res.json({ message: "Applicant not found" });
+
+        applicant.status = status;
+        await job.save();
+        res.json({ message: "Status updated", status });
+    } catch (err) {
+        console.error("Update status error:", err);
+        res.status(500).json({ message: "Error updating status" });
     }
 });
 
@@ -155,9 +229,22 @@ router.get("/skill-gap/:email/:jobId", async (req, res) => {
 
 // ================= MY APPLICATIONS =================
 router.get("/my-applications/:email", async (req, res) => {
+    const studentEmail = req.params.email.toLowerCase();
+
     try {
-        const jobs = await Job.find({ applicants: req.params.email.toLowerCase() });
-        res.json(jobs.map(toJobDTO));
+        // Dot-notation query — applicants is now an array of {email, status, appliedAt}
+        // sub-documents, so we match on the nested "email" field specifically.
+        const jobs = await Job.find({ "applicants.email": studentEmail }).sort({ createdAt: -1 });
+
+        const result = jobs.map(job => {
+            const myApplication = job.applicants.find(a => a.email === studentEmail);
+            return {
+                ...toJobDTO(job),
+                myStatus: myApplication?.status || "Applied"
+            };
+        });
+
+        res.json(result);
     } catch (err) {
         res.status(500).json({ message: "Error reading applications" });
     }
