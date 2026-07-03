@@ -1,7 +1,37 @@
+const path    = require("path");
+const fs      = require("fs");
+const multer  = require("multer");
+const pdfParse = require("pdf-parse");
 const User    = require("../models/User");
 const Profile = require("../models/Profile");
 const Job     = require("../models/Job");
 const Startup = require("../models/Startup");
+const { extractSkillsFromText } = require("../utils/skillsList");
+
+// ── Multer config — saves uploaded PDFs to backend/uploads/resumes/ ──────────
+const RESUME_DIR = path.join(__dirname, "../uploads/resumes");
+fs.mkdirSync(RESUME_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, RESUME_DIR),
+    filename: (req, file, cb) => {
+        const safeEmail = (req.body.email || "unknown").replace(/[^a-z0-9]/gi, "_");
+        cb(null, `${Date.now()}-${safeEmail}.pdf`);
+    }
+});
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype !== "application/pdf") return cb(new Error("Only PDF files are allowed"));
+        cb(null, true);
+    }
+});
+
+// Exported so server.js can wire this up as route middleware:
+// app.post("/profile/upload-resume", profile.uploadMiddleware, profile.uploadResume)
+exports.uploadMiddleware = upload.single("resume");
 
 // Helper — matches the nested-array shape dashboard.js already expects
 // (written against xml2js's explicitArray output, e.g. data.name?.[0],
@@ -104,6 +134,43 @@ exports.addSkill = async (req, res) => {
         res.json({ message: "Skill added successfully" });
     } catch (err) {
         res.status(500).json({ message: "Error adding skill" });
+    }
+};
+
+// ── UPLOAD RESUME + AUTO-PARSE SKILLS ─────────────────────────────────────────
+exports.uploadResume = async (req, res) => {
+    const { email } = req.body;
+    if (!req.file) return res.json({ message: "No file uploaded" });
+    if (!email)    return res.json({ message: "Email required" });
+
+    try {
+        const profile = await Profile.findOne({ email: email.toLowerCase() });
+        if (!profile) {
+            fs.unlinkSync(req.file.path); // clean up the orphaned file
+            return res.json({ message: "Profile not found" });
+        }
+
+        // Extract raw text from the uploaded PDF
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const parsed = await pdfParse(fileBuffer);
+        const suggestedSkills = extractSkillsFromText(parsed.text);
+
+        // Delete the old resume file if one exists, then save the new path
+        if (profile.resume) {
+            const oldPath = path.join(__dirname, "..", profile.resume);
+            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+        profile.resume = `/uploads/resumes/${req.file.filename}`;
+        await profile.save();
+
+        res.json({
+            message: "Resume uploaded and parsed",
+            resumeUrl: profile.resume,
+            suggestedSkills
+        });
+    } catch (err) {
+        console.error("Resume upload error:", err);
+        res.status(500).json({ message: "Error processing resume" });
     }
 };
 

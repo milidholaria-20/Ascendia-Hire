@@ -12,7 +12,10 @@ const jobSchema = new mongoose.Schema({
     company:        { type: String, required: true },
     postedBy:       { type: String, required: true, lowercase: true, trim: true }, // recruiter email
     requiredSkills: { type: [String], default: [] },
-    applicants:     { type: [applicantSchema], default: [] }
+    applicants:     { type: [applicantSchema], default: [] },
+    skillGapChecks: { type: Number, default: 0 }, // how many times a student checked their match % on this job
+    location:       { type: String, default: "Remote" },
+    jobType:        { type: String, enum: ["Full-time", "Part-time", "Internship", "Remote"], default: "Full-time" }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Job", jobSchema);

@@ -7,14 +7,16 @@ const http       = require("http");
 const { Server } = require("socket.io");
 const path       = require("path");
 
-const connectDB  = require("./db");
-const Startup    = require("./models/Startup");
+const connectDB    = require("./db");
+const Startup      = require("./models/Startup");
+const Conversation = require("./models/Conversation");
 
 const signupController = require("./auth/signup");
 const loginController  = require("./auth/login");
 const profile          = require("./profile/profile");
 const startupRoutes    = require("./startup/startup");
 const jobsRoutes       = require("./jobs/jobs");
+const messagesRoutes   = require("./messages/messages");
 
 const app    = express();
 const server = http.createServer(app);
@@ -37,6 +39,9 @@ app.use((req, res, next) => {
 // Serve frontend
 app.use(express.static(path.join(__dirname, "../frontend")));
 
+// Serve uploaded resumes (PDFs) so students/recruiters can open them via a link
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // AUTH
 app.post("/signup", signupController.signup);
 app.post("/login",  loginController.login);
@@ -47,6 +52,7 @@ app.get("/profile/:email",           profile.getProfile);
 app.put("/profile/update/:email",    profile.updateProfile);
 app.post("/profile/add-skill",       profile.addSkill);
 app.post("/profile/delete-skill",    profile.deleteSkill);
+app.post("/profile/upload-resume",   profile.uploadMiddleware, profile.uploadResume);
 app.get("/profiles",                 profile.getAllProfiles);
 app.get("/profile/search/:skill",    profile.searchBySkill);
 app.delete("/profile/:email",        profile.deleteProfile);
@@ -55,6 +61,7 @@ app.delete("/account/:email",        profile.deleteAccount);
 // STARTUP & JOBS
 app.use("/startup", startupRoutes);
 app.use("/jobs",    jobsRoutes);
+app.use("/messages", messagesRoutes);
 
 // SPA fallback
 app.get(/(.*)/, (req, res) => {
@@ -98,6 +105,37 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         console.log("Socket disconnected:", socket.id);
+    });
+
+    // ── Direct messaging (recruiter ↔ student, after shortlisting) ───────────
+    socket.on("joinConversation", ({ conversationId }) => {
+        [...socket.rooms].forEach(r => { if (r !== socket.id) socket.leave(r); });
+        socket.join("conversation:" + conversationId);
+        console.log(`Socket ${socket.id} → conversation:${conversationId}`);
+    });
+
+    socket.on("sendDirectMessage", async ({ conversationId, email, text }) => {
+        if (!conversationId || !email || !text?.trim()) return;
+
+        try {
+            const convo = await Conversation.findById(conversationId);
+            if (!convo) return;
+
+            const senderEmail = email.toLowerCase();
+            if (convo.student !== senderEmail && convo.recruiter !== senderEmail) return; // not a participant
+
+            const ts = Date.now();
+            convo.messages.push({ author: senderEmail, text: text.trim(), ts });
+            await convo.save();
+
+            io.to("conversation:" + conversationId).emit("newDirectMessage", {
+                author: senderEmail,
+                text: text.trim(),
+                ts
+            });
+        } catch (err) {
+            console.error("sendDirectMessage error:", err.message);
+        }
     });
 });
 

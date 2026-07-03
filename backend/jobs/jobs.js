@@ -14,7 +14,9 @@ function toJobDTO(job) {
         company: job.company,
         postedBy: job.postedBy,
         applicantsCount: job.applicants?.length || 0,
-        requiredSkills: job.requiredSkills || []
+        requiredSkills: job.requiredSkills || [],
+        location: job.location || "Remote",
+        jobType: job.jobType || "Full-time"
     };
 }
 
@@ -57,7 +59,7 @@ async function notifyMatchingStudents(job) {
 
 // ================= POST JOB =================
 router.post("/post", async (req, res) => {
-    const { title, company, email, skills } = req.body;
+    const { title, company, email, skills, location, jobType } = req.body;
 
     if (!title || !company || !email) {
         return res.json({ message: "Missing fields" });
@@ -68,7 +70,9 @@ router.post("/post", async (req, res) => {
             title, company,
             postedBy: email.toLowerCase(),
             requiredSkills: skills || [],
-            applicants: []
+            applicants: [],
+            location: location || "Remote",
+            jobType: jobType || "Full-time"
         });
         await job.save();
         res.json({ message: "Job posted successfully" });
@@ -124,9 +128,22 @@ router.get("/applicants/:jobId/:email", async (req, res) => {
         if (job.postedBy !== email.toLowerCase()) {
             return res.json({ message: "Access denied" });
         }
-        // Each applicant now carries { email, status, appliedAt } — sub-documents
-        // serialize to plain objects automatically via res.json()
-        res.json(job.applicants || []);
+
+        const normalize = s => s.trim().toLowerCase();
+        const applicantsWithMatch = await Promise.all(job.applicants.map(async (a) => {
+            let matchScore = null;
+            if (job.requiredSkills.length) {
+                const profile = await Profile.findOne({ email: a.email });
+                if (profile) {
+                    const userNorm = (profile.skills || []).map(normalize);
+                    const matched  = job.requiredSkills.filter(s => userNorm.includes(normalize(s)));
+                    matchScore = Math.round((matched.length / job.requiredSkills.length) * 100);
+                }
+            }
+            return { email: a.email, status: a.status, appliedAt: a.appliedAt, matchScore };
+        }));
+
+        res.json(applicantsWithMatch);
     } catch (err) {
         res.status(500).json({ message: "Error reading applicants" });
     }
@@ -134,6 +151,7 @@ router.get("/applicants/:jobId/:email", async (req, res) => {
 
 // ================= UPDATE APPLICANT STATUS =================
 const VALID_STATUSES = ["Applied", "Reviewed", "Shortlisted", "Rejected", "Offered"];
+const Conversation = require("../models/Conversation");
 
 router.post("/applicants/status", async (req, res) => {
     const { jobId, recruiterEmail, studentEmail, status } = req.body;
@@ -155,6 +173,20 @@ router.post("/applicants/status", async (req, res) => {
         applicant.status = status;
         await job.save();
         res.json({ message: "Status updated", status });
+
+        // Unlock direct messaging once the student is shortlisted or offered.
+        // Runs after the response — never delays the status-update itself.
+        if (status === "Shortlisted" || status === "Offered") {
+            Conversation.findOneAndUpdate(
+                { student: studentEmail.toLowerCase(), recruiter: recruiterEmail.toLowerCase(), jobId },
+                { $setOnInsert: {
+                    student: studentEmail.toLowerCase(),
+                    recruiter: recruiterEmail.toLowerCase(),
+                    jobId, jobTitle: job.title, company: job.company, messages: []
+                }},
+                { upsert: true }
+            ).catch(err => console.error("Auto-create conversation error:", err.message));
+        }
     } catch (err) {
         console.error("Update status error:", err);
         res.status(500).json({ message: "Error updating status" });
@@ -222,6 +254,10 @@ router.get("/skill-gap/:email/:jobId", async (req, res) => {
         const missing = required.filter(skill => !userSkillsNorm.includes(normalize(skill)));
 
         res.json({ userSkills, required, missing });
+
+        // Fire-and-forget analytics counter — a student checking their gap is a
+        // real interest signal. $inc is atomic, so concurrent checks never race.
+        Job.updateOne({ _id: jobId }, { $inc: { skillGapChecks: 1 } }).catch(() => {});
     } catch (err) {
         res.status(500).json({ message: "Error computing skill gap" });
     }
@@ -247,6 +283,74 @@ router.get("/my-applications/:email", async (req, res) => {
         res.json(result);
     } catch (err) {
         res.status(500).json({ message: "Error reading applications" });
+    }
+});
+
+// ================= RECRUITER ANALYTICS =================
+router.get("/analytics/:recruiterEmail", async (req, res) => {
+    const recruiterEmail = req.params.recruiterEmail.toLowerCase();
+
+    try {
+        const jobs = await Job.find({ postedBy: recruiterEmail }).sort({ createdAt: -1 });
+
+        const statusBreakdown = { Applied: 0, Reviewed: 0, Shortlisted: 0, Rejected: 0, Offered: 0 };
+        const perJob = [];
+        let totalApplicants = 0, totalGapChecks = 0;
+        let allMatchScores = []; // flattened across every job, for the overall average
+
+        const normalize = s => s.trim().toLowerCase();
+
+        for (const job of jobs) {
+            totalApplicants += job.applicants.length;
+            totalGapChecks  += job.skillGapChecks || 0;
+
+            let jobMatchScores = [];
+
+            for (const applicant of job.applicants) {
+                statusBreakdown[applicant.status] = (statusBreakdown[applicant.status] || 0) + 1;
+
+                if (job.requiredSkills.length) {
+                    const profile = await Profile.findOne({ email: applicant.email });
+                    if (profile) {
+                        const userNorm = (profile.skills || []).map(normalize);
+                        const matched  = job.requiredSkills.filter(s => userNorm.includes(normalize(s)));
+                        const pct = Math.round((matched.length / job.requiredSkills.length) * 100);
+                        jobMatchScores.push(pct);
+                        allMatchScores.push(pct);
+                    }
+                }
+            }
+
+            perJob.push({
+                jobId: job._id.toString(),
+                title: job.title,
+                company: job.company,
+                applicantsCount: job.applicants.length,
+                skillGapChecks: job.skillGapChecks || 0,
+                avgMatchScore: jobMatchScores.length
+                    ? Math.round(jobMatchScores.reduce((a, b) => a + b, 0) / jobMatchScores.length)
+                    : null,
+                conversionRate: job.skillGapChecks
+                    ? Math.round((job.applicants.length / job.skillGapChecks) * 100)
+                    : null
+            });
+        }
+
+        const overallAvgMatch = allMatchScores.length
+            ? Math.round(allMatchScores.reduce((a, b) => a + b, 0) / allMatchScores.length)
+            : null;
+
+        res.json({
+            totalJobs: jobs.length,
+            totalApplicants,
+            totalGapChecks,
+            overallAvgMatch,
+            statusBreakdown,
+            perJob
+        });
+    } catch (err) {
+        console.error("Analytics error:", err);
+        res.status(500).json({ message: "Error computing analytics" });
     }
 });
 

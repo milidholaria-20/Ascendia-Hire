@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -374,6 +375,21 @@
             50%      { opacity: 0.4; transform: scale(1.4); }
         }
 
+        /* chat bubbles — shared by startup group chat AND 1-on-1 direct messages,
+           so this lives here globally instead of inside a page-specific render
+           function (previously caused messages to look one-sided if the DM
+           page loaded before the startup chat page ever had). */
+        .msg-bubble { display:flex; gap:10px; margin-bottom:12px; }
+        .msg-bubble.self { flex-direction:row-reverse; }
+        .msg-avatar { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;flex-shrink:0; background:rgba(59,130,246,0.14);color:#7CA8FF; }
+        .msg-avatar.self { background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016; }
+        .msg-body { display:flex;flex-direction:column;gap:4px;max-width:72%; }
+        .msg-body.self { align-items:flex-end; }
+        .msg-meta { display:flex;gap:8px;align-items:center;font-size:0.68rem;color:#8892A8; }
+        .msg-meta.self { flex-direction:row-reverse; }
+        .msg-bubble-text { padding:0.55rem 0.9rem;border-radius:14px;font-size:0.83rem;line-height:1.5; background:#1B2436;color:#E7ECF5;border-radius-top-left:4px; }
+        .msg-bubble-text.self { background:linear-gradient(135deg,#00D4FF,#00A8CC);color:#041016;border-radius-top-right:4px; }
+
         /* ── MOBILE ── */
         @media (max-width: 768px) {
             #appSidebar {
@@ -386,6 +402,11 @@
             #mobileMenuBtn { display: flex; }
             #mainView { padding: 1rem; }
             .card { padding: 1rem; border-radius: 12px; }
+            /* collapse any inline 2-column or 4-column grid (analytics cards,
+               charts, quick actions, etc.) to a single column on phones */
+            div[style*="grid-template-columns:repeat(4,1fr)"],
+            div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr!important; }
+            table { font-size: 0.75rem; }
         }
     </style>
 </head>

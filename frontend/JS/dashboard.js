@@ -45,6 +45,7 @@ const studentNav = `
     <p class="nav-section-label">Opportunities</p>
     <button class="nav-btn" id="nav-jobs"    onclick="goNav('jobs')">   <i class="fas fa-briefcase"></i>Job Portal</button>
     <button class="nav-btn" id="nav-myapps"  onclick="goNav('myapps')"> <i class="fas fa-paper-plane"></i>My Applications</button>
+    <button class="nav-btn" id="nav-messages" onclick="goNav('messages')"><i class="fas fa-comment-dots"></i>Messages</button>
     <p class="nav-section-label">Account</p>
     <button class="nav-btn" id="nav-profile" onclick="goNav('profile')"><i class="fas fa-user"></i>My Profile</button>`;
 
@@ -54,6 +55,8 @@ const recruiterNav = `
     <button class="nav-btn" id="nav-postjob"  onclick="goNav('postjob')"> <i class="fas fa-plus-circle"></i>Post a Job</button>
     <button class="nav-btn" id="nav-myjobs"   onclick="goNav('myjobs')">  <i class="fas fa-briefcase"></i>My Posted Jobs</button>
     <button class="nav-btn" id="nav-jobs"     onclick="goNav('jobs')">    <i class="fas fa-list"></i>All Jobs</button>
+    <button class="nav-btn" id="nav-analytics" onclick="goNav('analytics')"><i class="fas fa-chart-line"></i>Analytics</button>
+    <button class="nav-btn" id="nav-messages" onclick="goNav('messages')"><i class="fas fa-comment-dots"></i>Messages</button>
     <p class="nav-section-label">Talent</p>
     <button class="nav-btn" id="nav-explore"  onclick="goNav('explore')"> <i class="fas fa-search"></i>Browse Startups</button>
     <button class="nav-btn" id="nav-profiles" onclick="goNav('profiles')"><i class="fas fa-users"></i>Student Profiles</button>
@@ -79,7 +82,8 @@ function logout() { localStorage.clear(); window.location.href = "index.html"; }
 const pageTitles = {
     home: "Dashboard", pitch: "Pitch My Idea", explore: "Explore Ecosystem",
     jobs: "Job Portal", myapps: "My Applications", profile: "My Profile",
-    postjob: "Post a Job", myjobs: "My Posted Jobs", profiles: "Student Profiles"
+    postjob: "Post a Job", myjobs: "My Posted Jobs", profiles: "Student Profiles",
+    messages: "Messages", "conversation-detail": "Messages", analytics: "Analytics"
 };
 
 function goNav(mod) {
@@ -89,13 +93,17 @@ function goNav(mod) {
 
 function loadModule(mod) {
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-    const btn = document.getElementById(`nav-${mod}`);
+    const activeNavId = mod === "conversation-detail" ? "messages" : mod;
+    const btn = document.getElementById(`nav-${activeNavId}`);
     if (btn) btn.classList.add("active");
     document.getElementById("pageTitle").textContent = pageTitles[mod] || "";
     const view = document.getElementById("mainView");
-    // cleanup socket room when leaving startup detail
+    // cleanup socket rooms when leaving detail views
     if (_currentStartupId && mod !== "startup-detail") {
         _currentStartupId = null;
+    }
+    if (_currentConversationId && mod !== "conversation-detail") {
+        _currentConversationId = null;
     }
     ({
         home:     () => renderHome(view),
@@ -107,6 +115,8 @@ function loadModule(mod) {
         postjob:  () => renderPostJob(view),
         myjobs:   () => renderMyJobs(view),
         profiles: () => renderStudentProfiles(view),
+        messages: () => renderMessages(view),
+        analytics: () => renderAnalytics(view),
     }[mod] || (() => { view.innerHTML = `<p style="color:#8892A8;text-align:center;margin-top:4rem">Coming soon…</p>`; }))();
 }
 
@@ -115,6 +125,28 @@ const socket = io();
 
 socket.on("newMessage", ({ author, text, ts }) => {
     const msgList = document.getElementById("msgList");
+    if (!msgList) return;
+    const isSelf = author === email;
+    const time   = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const bubble = document.createElement("div");
+    bubble.className = `msg-bubble ${isSelf ? "self" : "other"}`;
+    bubble.innerHTML = `
+        <div class="msg-avatar ${isSelf ? "self" : ""}">${(author[0] || "?").toUpperCase()}</div>
+        <div class="msg-body ${isSelf ? "self" : ""}">
+            <div class="msg-meta ${isSelf ? "self" : ""}">
+                <span>${isSelf ? "You" : author.split("@")[0]}</span>
+                <span>${time}</span>
+            </div>
+            <div class="msg-bubble-text ${isSelf ? "self" : ""}">${escHtml(text)}</div>
+        </div>`;
+    msgList.appendChild(bubble);
+    msgList.scrollTop = msgList.scrollHeight;
+});
+
+// Direct (recruiter <-> student) messages — reuses the same .msg-bubble CSS
+// classes as startup chat, just targets #dmList instead of #msgList
+socket.on("newDirectMessage", ({ author, text, ts }) => {
+    const msgList = document.getElementById("dmList");
     if (!msgList) return;
     const isSelf = author === email;
     const time   = new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -239,6 +271,17 @@ function renderProfile(view) {
                 <button class="btn btn-indigo" onclick="addSkill()"><i class="fas fa-plus"></i> Add</button>
             </div>
         </div>`:""}
+        ${role==="student"?`
+        <div class="card">
+            <p class="section-title"><i class="fas fa-file-arrow-up" style="color:#4FE0FF;margin-right:6px"></i>Resume</p>
+            <div id="resumeStatus" style="margin-bottom:0.85rem"></div>
+            <div style="display:flex;gap:0.65rem;align-items:center;flex-wrap:wrap">
+                <input type="file" id="resumeFile" accept="application/pdf" class="input-field" style="max-width:280px;padding:0.5rem 0.7rem">
+                <button class="btn btn-indigo" onclick="uploadResume()" id="resumeUploadBtn"><i class="fas fa-upload"></i> Upload & Parse</button>
+            </div>
+            <p style="font-size:0.72rem;color:#7C879C;margin-top:0.6rem"><i class="fas fa-circle-info" style="margin-right:4px"></i>PDF only. We scan the text for known skills and suggest ones to add to your profile.</p>
+            <div id="resumeSuggestions" style="margin-top:0.85rem"></div>
+        </div>`:""}
         <div class="card">
             <p class="section-title"><i class="fas fa-edit" style="color:#4FE0FF;margin-right:6px"></i>Update Details</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:1rem">
@@ -307,6 +350,13 @@ async function loadProfileData() {
                     ${s}<button onclick="deleteSkill('${s}')" style="background:none;border:none;cursor:pointer;color:#4FE0FF;font-size:14px;line-height:1;padding:0;margin-left:2px" title="Remove">×</button></span>`).join("")
                 : `<p style="color:#8892A8;font-size:0.83rem">No skills added yet.</p>`;
         }
+        const resumeStatusEl = document.getElementById("resumeStatus");
+        if (resumeStatusEl) {
+            const resumeUrl = data.resume?.[0];
+            resumeStatusEl.innerHTML = resumeUrl
+                ? `<a href="${API}${resumeUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;color:#34D399;text-decoration:none"><i class="fas fa-file-pdf"></i> Current resume on file — click to view</a>`
+                : `<p style="font-size:0.8rem;color:#8892A8">No resume uploaded yet.</p>`;
+        }
     } catch {
         const card=document.getElementById("profileCard");
         if(card) card.innerHTML=`<p style="color:#ef4444;font-size:0.85rem">Could not load profile — is the server running?</p>`;
@@ -337,6 +387,71 @@ async function deleteSkill(skill) {
     toast(data.message);
     _myProfileSkills = null; // invalidate cache so job match % recalculates next time
     loadProfileData();
+}
+
+async function uploadResume() {
+    const fileInput = document.getElementById("resumeFile");
+    const file = fileInput.files[0];
+    if (!file) { toast("Choose a PDF file first", true); return; }
+    if (file.type !== "application/pdf") { toast("Only PDF files are supported", true); return; }
+
+    const btn = document.getElementById("resumeUploadBtn");
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Parsing…';
+
+    const formData = new FormData();
+    formData.append("resume", file);
+    formData.append("email", email);
+
+    try {
+        const data = await (await fetch(`${API}/profile/upload-resume`, { method: "POST", body: formData })).json();
+        if (data.message !== "Resume uploaded and parsed") {
+            toast(data.message || "Upload failed", true);
+        } else {
+            toast("Resume uploaded! Found " + data.suggestedSkills.length + " skill(s).");
+            renderResumeSuggestions(data.suggestedSkills || []);
+            loadProfileData();
+        }
+    } catch {
+        toast("Could not upload resume", true);
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-upload"></i> Upload & Parse';
+}
+
+function renderResumeSuggestions(suggested) {
+    const box = document.getElementById("resumeSuggestions");
+    if (!box) return;
+    const currentSkills = (_myProfileSkills || []).map(s => s.toLowerCase());
+    const newOnes = suggested.filter(s => !currentSkills.includes(s.toLowerCase()));
+
+    if (!newOnes.length) {
+        box.innerHTML = suggested.length
+            ? `<p style="font-size:0.78rem;color:#8892A8">All detected skills are already on your profile.</p>`
+            : "";
+        return;
+    }
+
+    box.innerHTML = `
+        <p style="font-size:0.72rem;font-weight:700;color:#4FE0FF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Found in your resume — click to add</p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
+            ${newOnes.map(s => `<button onclick="quickAddSkill('${s.replace(/'/g,"\\'")}', this)" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,212,255,0.12);border:1px dashed rgba(0,212,255,0.4);color:#4FE0FF;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer"><i class="fas fa-plus" style="font-size:10px"></i>${s}</button>`).join("")}
+        </div>`;
+}
+
+async function quickAddSkill(skill, btnEl) {
+    btnEl.disabled = true;
+    const data = await (await fetch(`${API}/profile/add-skill`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,skill})})).json();
+    if (data.message === "Skill added successfully") {
+        toast(`Added "${skill}"`);
+        _myProfileSkills = null;
+        btnEl.remove();
+        loadProfileData();
+    } else {
+        toast(data.message, true);
+        btnEl.disabled = false;
+    }
 }
 
 async function updateProfile() {
@@ -545,19 +660,6 @@ function renderStartupDetail(s) {
     const canChat  = isMember;
 
     view.innerHTML = `
-    <style>
-    .msg-bubble { display:flex; gap:10px; margin-bottom:12px; }
-    .msg-bubble.self { flex-direction:row-reverse; }
-    .msg-avatar { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;flex-shrink:0; background:rgba(59,130,246,0.14);color:#7CA8FF; }
-    .msg-avatar.self { background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016; }
-    .msg-body { display:flex;flex-direction:column;gap:4px;max-width:72%; }
-    .msg-body.self { align-items:flex-end; }
-    .msg-meta { display:flex;gap:8px;align-items:center;font-size:0.68rem;color:#8892A8; }
-    .msg-meta.self { flex-direction:row-reverse; }
-    .msg-bubble-text { padding:0.55rem 0.9rem;border-radius:14px;font-size:0.83rem;line-height:1.5; background:#1B2436;color:#E7ECF5;border-radius-top-left:4px; }
-    .msg-bubble-text.self { background:linear-gradient(135deg,#00D4FF,#00A8CC);color:#041016;border-radius-top-right:4px; }
-    </style>
-
     <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:1rem">
 
         <button class="btn-sm-outline" onclick="loadModule('explore')"><i class="fas fa-arrow-left"></i> Back to Explore</button>
@@ -653,16 +755,142 @@ function sendMsg(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// DIRECT MESSAGES (recruiter <-> student, after shortlisting)
+// ═══════════════════════════════════════════════════════════════════════════════
+let _currentConversationId = null;
+
+function renderMessages(view) {
+    view.innerHTML = `
+    <div>
+        <p class="section-title">Messages</p>
+        <div id="conversationsList"><p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
+    </div>`;
+    loadConversations();
+}
+
+async function loadConversations() {
+    try {
+        const conversations = await (await fetch(`${API}/messages/conversations/${email}`)).json();
+        const el = document.getElementById("conversationsList");
+        if (!el) return;
+        if (!conversations.length) {
+            el.innerHTML = `<div class="card" style="text-align:center;padding:3rem 1rem">
+                <i class="fas fa-comment-dots" style="font-size:2.5rem;color:#232C42;margin-bottom:1rem;display:block"></i>
+                <p style="font-weight:700;color:#A8B3C7">No conversations yet.</p>
+                <p style="color:#8892A8;font-size:0.83rem;margin-top:0.5rem">${role==="student"
+                    ? "Once a recruiter shortlists you for a job, you can message them here."
+                    : "Shortlist a student applicant to start a conversation with them."}</p>
+            </div>`;
+            return;
+        }
+        el.innerHTML = `<div style="display:flex;flex-direction:column;gap:0.6rem">` + conversations.map(c => `
+            <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:0.85rem" onclick="viewConversation('${c.id}')">
+                <div style="width:42px;height:42px;border-radius:12px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;flex-shrink:0">${c.otherParty[0].toUpperCase()}</div>
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                        <p style="font-weight:700;color:#E7ECF5;font-size:0.87rem">${c.otherParty}</p>
+                        <span class="tag" style="background:#1B2436;color:#A8B3C7">${c.jobTitle}${c.company?" · "+c.company:""}</span>
+                    </div>
+                    <p style="font-size:0.78rem;color:#8892A8;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.lastMessage ? escHtml(c.lastMessage) : "No messages yet — say hi!"}</p>
+                </div>
+                <i class="fas fa-chevron-right" style="color:#465067;font-size:0.8rem"></i>
+            </div>`).join("") + `</div>`;
+    } catch {
+        const el = document.getElementById("conversationsList");
+        if (el) el.innerHTML = `<p style="color:#ef4444;font-size:0.83rem">Could not load conversations.</p>`;
+    }
+}
+
+async function viewConversation(id) {
+    const view = document.getElementById("mainView");
+    view.innerHTML = `<p style="color:#8892A8;text-align:center;margin-top:4rem">Loading…</p>`;
+    let convo;
+    try {
+        convo = await (await fetch(`${API}/messages/${id}/${email}`)).json();
+    } catch {
+        view.innerHTML = `<p style="color:#ef4444;text-align:center;margin-top:4rem">Could not load conversation.</p>`;
+        return;
+    }
+    if (convo.message) { toast(convo.message, true); loadModule("messages"); return; }
+
+    _currentConversationId = id;
+    document.getElementById("pageTitle").textContent = "Messages";
+    socket.emit("joinConversation", { conversationId: id });
+
+    view.innerHTML = `
+    <div style="max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:1rem">
+        <button class="btn-sm-outline" style="width:fit-content" onclick="loadModule('messages')"><i class="fas fa-arrow-left"></i> Back to Messages</button>
+
+        <div class="card" style="display:flex;flex-direction:column;gap:0">
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;border-bottom:1px solid #232C42;padding-bottom:1rem">
+                <div style="width:40px;height:40px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800">${convo.otherParty[0].toUpperCase()}</div>
+                <div>
+                    <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${convo.otherParty}</p>
+                    <p style="font-size:0.72rem;color:#8892A8">${convo.jobTitle}${convo.company?" · "+convo.company:""} <span class="live-dot" style="margin-left:6px"></span></p>
+                </div>
+            </div>
+
+            <div id="dmList" style="min-height:220px;max-height:400px;overflow-y:auto;margin-bottom:1rem;padding-right:4px">
+                ${convo.messages.length ? convo.messages.map(m => {
+                    const isSelf = m.author === email;
+                    const time = new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                    return `<div class="msg-bubble ${isSelf?"self":""}">
+                        <div class="msg-avatar ${isSelf?"self":""}">${(m.author[0]||"?").toUpperCase()}</div>
+                        <div class="msg-body ${isSelf?"self":""}">
+                            <div class="msg-meta ${isSelf?"self":""}"><span>${isSelf?"You":m.author.split("@")[0]}</span><span>${time}</span></div>
+                            <div class="msg-bubble-text ${isSelf?"self":""}">${escHtml(m.text)}</div>
+                        </div>
+                    </div>`;
+                }).join("") : `<p style="color:#8892A8;font-size:0.83rem;text-align:center;padding:2.5rem 0">No messages yet. Say hi! 👋</p>`}
+            </div>
+
+            <div style="display:flex;gap:0.65rem">
+                <input id="dmInput" class="input-field" style="flex:1" placeholder="Write a message…" onkeydown="if(event.key==='Enter')sendDirectMsg('${id}')">
+                <button class="btn btn-indigo" style="padding:0.6rem 1rem" onclick="sendDirectMsg('${id}')"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>`;
+
+    const dl = document.getElementById("dmList");
+    if (dl) dl.scrollTop = dl.scrollHeight;
+}
+
+function sendDirectMsg(id) {
+    const input = document.getElementById("dmInput");
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    socket.emit("sendDirectMessage", { conversationId: id, email, text });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // JOB PORTAL
 // ═══════════════════════════════════════════════════════════════════════════════
 function renderJobs(view) {
     view.innerHTML=`
     <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;flex-wrap:wrap;gap:0.75rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem">
             <p class="section-title" style="margin:0">All Jobs</p>
-            <div style="display:flex;gap:0.65rem;align-items:center">
-                <input class="input-field" id="jobSearch" placeholder="Search…" style="max-width:200px" oninput="filterJobsLocal(this.value)">
-                ${role==="recruiter"?`<button class="btn btn-indigo" onclick="loadModule('postjob')"><i class="fas fa-plus"></i> Post Job</button>`:""}
+            ${role==="recruiter"?`<button class="btn btn-indigo" onclick="loadModule('postjob')"><i class="fas fa-plus"></i> Post Job</button>`:""}
+        </div>
+        <div class="card" style="margin-bottom:1rem;padding:0.85rem 1rem">
+            <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+                <input class="input-field" id="jobSearch" placeholder="Search title or company…" style="max-width:200px;flex:1;min-width:150px" oninput="applyJobFilters()">
+                ${role==="student"?`
+                <select class="input-field" id="jobMatchFilter" style="max-width:150px" onchange="applyJobFilters()">
+                    <option value="0">Any match %</option>
+                    <option value="70">70%+ match</option>
+                    <option value="40">40%+ match</option>
+                </select>`:""}
+                <select class="input-field" id="jobTypeFilter" style="max-width:150px" onchange="applyJobFilters()">
+                    <option value="">Any job type</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Remote">Remote</option>
+                </select>
+                <input class="input-field" id="jobLocationFilter" placeholder="Location…" style="max-width:150px" oninput="applyJobFilters()">
+                <button class="btn-sm-outline" onclick="clearJobFilters()"><i class="fas fa-xmark"></i> Clear</button>
             </div>
         </div>
         <div id="jobsList"><p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">Loading…</p></div>
@@ -704,12 +932,37 @@ async function loadJobs() {
         renderJobsList(_allJobs);
     } catch { const el=document.getElementById("jobsList"); if(el) el.innerHTML=`<p style="color:#ef4444;font-size:0.83rem">Could not load jobs.</p>`; }
 }
-function filterJobsLocal(q) {
-    renderJobsList(q?_allJobs.filter(j=>j.title.toLowerCase().includes(q.toLowerCase())||j.company.toLowerCase().includes(q.toLowerCase())):_allJobs);
+
+function applyJobFilters() {
+    const q          = (document.getElementById("jobSearch")?.value || "").toLowerCase();
+    const minMatch    = parseInt(document.getElementById("jobMatchFilter")?.value || "0");
+    const jobType     = document.getElementById("jobTypeFilter")?.value || "";
+    const locationQ   = (document.getElementById("jobLocationFilter")?.value || "").toLowerCase();
+
+    const filtered = _allJobs.filter(j => {
+        if (q && !j.title.toLowerCase().includes(q) && !j.company.toLowerCase().includes(q)) return false;
+        if (jobType && j.jobType !== jobType) return false;
+        if (locationQ && !(j.location || "").toLowerCase().includes(locationQ)) return false;
+        if (role === "student" && minMatch > 0) {
+            const pct = computeMatchPercent(j.requiredSkills, _myProfileSkills);
+            if (pct === null || pct < minMatch) return false;
+        }
+        return true;
+    });
+    renderJobsList(filtered);
 }
+
+function clearJobFilters() {
+    const s = document.getElementById("jobSearch"); if (s) s.value = "";
+    const m = document.getElementById("jobMatchFilter"); if (m) m.value = "0";
+    const t = document.getElementById("jobTypeFilter"); if (t) t.value = "";
+    const l = document.getElementById("jobLocationFilter"); if (l) l.value = "";
+    renderJobsList(_allJobs);
+}
+
 function renderJobsList(jobs) {
     const el=document.getElementById("jobsList");
-    if(!jobs.length){el.innerHTML=`<p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">No jobs found.</p>`;return;}
+    if(!jobs.length){el.innerHTML=`<p style="color:#8892A8;font-size:0.83rem;text-align:center;margin-top:2rem">No jobs match your filters.</p>`;return;}
     el.innerHTML=`<div style="display:flex;flex-direction:column;gap:0.75rem">`+jobs.map(j=>{
         const skills=j.requiredSkills||[], isOwn=j.postedBy===email;
         const matchPct = role==="student" ? computeMatchPercent(skills, _myProfileSkills) : null;
@@ -718,6 +971,8 @@ function renderJobsList(jobs) {
                 <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:4px">
                     <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${j.title}</p>
                     <span class="tag" style="background:#1B2436;color:#A8B3C7">${j.company}</span>
+                    <span class="tag" style="background:rgba(251,191,36,0.14);color:#FBBF24"><i class="fas fa-location-dot" style="margin-right:3px"></i>${j.location||"Remote"}</span>
+                    <span class="tag" style="background:rgba(124,168,255,0.14);color:#7CA8FF">${j.jobType||"Full-time"}</span>
                     ${j.applicantsCount?`<span class="tag" style="background:rgba(16,185,129,0.14);color:#34D399">${j.applicantsCount} applicant${j.applicantsCount!==1?"s":""}</span>`:""}
                     ${matchPct!==null?`<span class="tag" style="${matchBadgeStyle(matchPct)}"><i class="fas fa-bullseye" style="margin-right:3px"></i>${matchPct}% match</span>`:""}
                 </div>
@@ -763,8 +1018,11 @@ async function checkJobGap(id, title) {
 async function viewApplicants(jobId, jobTitle) {
     const data = await (await fetch(`${API}/jobs/applicants/${jobId}/${email}`)).json();
     if(data.message){toast(data.message,true);return;}
+    _currentApplicants = data; // cache full list so the filter dropdown doesn't re-fetch
     showApplicantsModal(jobId,jobTitle,data);
 }
+
+let _currentApplicants = [];
 
 const STATUS_STYLES = {
     Applied:     "background:rgba(59,130,246,0.16);color:#7CA8FF",
@@ -781,29 +1039,50 @@ function showApplicantsModal(jobId, title, applicants) {
     modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem";
     modal.innerHTML=`
     <div style="background:#131A2A;border:1px solid #232C42;border-radius:20px;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.5);max-height:80vh;overflow-y:auto">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
             <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5"><i class="fas fa-users" style="color:#00D4FF;margin-right:8px"></i>Applicants: ${title}</h3>
             <button onclick="document.getElementById('applicantsModal').remove()" style="color:#8892A8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
         </div>
-        ${!applicants.length?`<p style="color:#8892A8;text-align:center;padding:2rem 0">No applicants yet.</p>`
+        ${_currentApplicants.some(a=>a.matchScore!==null&&a.matchScore!==undefined)?`
+        <select class="input-field" style="margin-bottom:1rem;font-size:0.78rem" onchange="filterApplicantsByMatch('${jobId}','${title.replace(/'/g,"\\'")}',this.value)">
+            <option value="0">Show all applicants</option>
+            <option value="70">70%+ match only</option>
+            <option value="40">40%+ match only</option>
+        </select>`:""}
+        <div id="applicantsListInner">
+        ${!applicants.length?`<p style="color:#8892A8;text-align:center;padding:2rem 0">No applicants match this filter.</p>`
             :applicants.map(a=>{
                 const st = a.status || "Applied";
+                const mp = a.matchScore;
                 return `
             <div style="display:flex;align-items:center;gap:0.7rem;padding:0.75rem;border-radius:12px;background:#1B2436;border:1px solid #232C42;margin-bottom:0.5rem;flex-wrap:wrap">
                 <div style="width:38px;height:38px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a.email[0].toUpperCase()}</div>
                 <div style="flex:1;min-width:120px">
                     <p style="font-weight:700;color:#E7ECF5;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.email}</p>
-                    <span class="tag" style="${STATUS_STYLES[st]}">${st}</span>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">
+                        <span class="tag" style="${STATUS_STYLES[st]}">${st}</span>
+                        ${mp!==null&&mp!==undefined?`<span class="tag" style="${matchBadgeStyle(mp)}"><i class="fas fa-bullseye" style="margin-right:2px"></i>${mp}%</span>`:""}
+                    </div>
                 </div>
                 <select class="input-field" style="width:auto;padding:0.4rem 0.6rem;font-size:0.75rem" onchange="updateApplicantStatus('${jobId}','${a.email}',this.value,'${title.replace(/'/g,"\\'")}')">
                     ${STATUS_OPTIONS.map(opt=>`<option value="${opt}" ${opt===st?"selected":""}>${opt}</option>`).join("")}
                 </select>
                 <a href="mailto:${a.email}" style="padding:0.35rem 0.6rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope"></i></a>
             </div>`;}).join("")}
-        <p style="color:#8892A8;font-size:0.72rem;text-align:center;margin-top:0.75rem">${applicants.length} applicant${applicants.length!==1?"s":""} total</p>
+        </div>
+        <p style="color:#8892A8;font-size:0.72rem;text-align:center;margin-top:0.75rem">${applicants.length} of ${_currentApplicants.length} applicant${_currentApplicants.length!==1?"s":""} shown</p>
         <button onclick="document.getElementById('applicantsModal').remove()" style="width:100%;margin-top:1rem;background:#1B2436;border:1px solid #232C42;color:#E7ECF5;padding:0.7rem;border-radius:12px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Close</button>
     </div>`;
     document.body.appendChild(modal);
+}
+
+function filterApplicantsByMatch(jobId, title, minMatch) {
+    const min = parseInt(minMatch);
+    const filtered = min > 0
+        ? _currentApplicants.filter(a => a.matchScore !== null && a.matchScore !== undefined && a.matchScore >= min)
+        : _currentApplicants;
+    document.getElementById("applicantsModal")?.remove();
+    showApplicantsModal(jobId, title, filtered);
 }
 
 async function updateApplicantStatus(jobId, studentEmail, newStatus, jobTitle) {
@@ -813,6 +1092,7 @@ async function updateApplicantStatus(jobId, studentEmail, newStatus, jobTitle) {
             toast(`${studentEmail.split("@")[0]} → ${newStatus}`);
             // refresh the modal in place so the badge updates immediately
             const refreshed = await (await fetch(`${API}/jobs/applicants/${jobId}/${email}`)).json();
+            _currentApplicants = refreshed; // keep cache in sync so the match-filter dropdown stays accurate
             document.getElementById("applicantsModal")?.remove();
             showApplicantsModal(jobId, jobTitle, refreshed);
         } else {
@@ -832,6 +1112,15 @@ function renderPostJob(view) {
             <div style="display:flex;flex-direction:column;gap:0.85rem">
                 <input class="input-field" id="jobTitle" placeholder="Job Title *" required>
                 <input class="input-field" id="jobCompany" placeholder="Company Name *" value="${company}" required>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                    <input class="input-field" id="jobLocation" placeholder="Location (e.g. Bangalore, Remote)">
+                    <select class="input-field" id="jobType">
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Internship">Internship</option>
+                        <option value="Remote">Remote</option>
+                    </select>
+                </div>
                 <input class="input-field" id="jobSkills" placeholder="Required Skills (comma-separated, e.g. React, Node, Python)">
                 <p style="font-size:0.75rem;color:#8892A8;font-style:italic"><i class="fas fa-info-circle" style="margin-right:4px"></i>Students can check their skill gap against this listing.</p>
                 <button class="btn btn-indigo" style="padding:0.75rem;justify-content:center;font-size:0.88rem" onclick="postJob()">
@@ -846,9 +1135,11 @@ function renderPostJob(view) {
 
 async function postJob() {
     const title=document.getElementById("jobTitle").value.trim(), comp=document.getElementById("jobCompany").value.trim();
+    const location=document.getElementById("jobLocation").value.trim() || "Remote";
+    const jobType=document.getElementById("jobType").value;
     const skills=document.getElementById("jobSkills").value.split(",").map(s=>s.trim()).filter(Boolean);
     if(!title||!comp){toast("Title and company are required",true);return;}
-    const data=await (await fetch(`${API}/jobs/post`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,company:comp,email,skills})})).json();
+    const data=await (await fetch(`${API}/jobs/post`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,company:comp,email,skills,location,jobType})})).json();
     toast(data.message);
     if(data.message==="Job posted successfully") loadModule("myjobs");
 }
@@ -897,6 +1188,147 @@ async function deleteMyJob(id) {
     const data=await (await fetch(`${API}/jobs/delete/${id}/${email}`,{method:"DELETE"})).json();
     toast(data.message);
     renderMyJobs(document.getElementById("mainView"));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RECRUITER ANALYTICS DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+let _statusChartInstance = null;
+let _perJobChartInstance = null;
+
+function renderAnalytics(view) {
+    if (role !== "recruiter") { view.innerHTML = `<p style="color:#8892A8;text-align:center;margin-top:4rem">This section is for recruiters.</p>`; return; }
+    view.innerHTML = `<p style="color:#8892A8;text-align:center;margin-top:4rem">Loading analytics…</p>`;
+    loadAnalytics();
+}
+
+async function loadAnalytics() {
+    const view = document.getElementById("mainView");
+    let data;
+    try {
+        data = await (await fetch(`${API}/jobs/analytics/${email}`)).json();
+    } catch {
+        view.innerHTML = `<p style="color:#ef4444;text-align:center;margin-top:4rem">Could not load analytics.</p>`;
+        return;
+    }
+
+    if (!data.totalJobs) {
+        view.innerHTML = `<div class="card" style="text-align:center;padding:3rem 1rem">
+            <i class="fas fa-chart-line" style="font-size:2.5rem;color:#232C42;margin-bottom:1rem;display:block"></i>
+            <p style="font-weight:700;color:#A8B3C7">No data yet.</p>
+            <p style="color:#8892A8;font-size:0.83rem;margin-top:0.5rem">Post a job to start collecting analytics.</p>
+        </div>`;
+        return;
+    }
+
+    view.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+        <!-- Overview cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+            <div class="card" style="text-align:center">
+                <p style="font-size:1.6rem;font-weight:800;color:#00D4FF">${data.totalJobs}</p>
+                <p style="font-size:0.72rem;color:#8892A8;margin-top:2px">Jobs Posted</p>
+            </div>
+            <div class="card" style="text-align:center">
+                <p style="font-size:1.6rem;font-weight:800;color:#34D399">${data.totalApplicants}</p>
+                <p style="font-size:0.72rem;color:#8892A8;margin-top:2px">Total Applicants</p>
+            </div>
+            <div class="card" style="text-align:center">
+                <p style="font-size:1.6rem;font-weight:800;color:#7CA8FF">${data.totalGapChecks}</p>
+                <p style="font-size:0.72rem;color:#8892A8;margin-top:2px">Skill Gap Checks</p>
+            </div>
+            <div class="card" style="text-align:center">
+                <p style="font-size:1.6rem;font-weight:800;color:#FBBF24">${data.overallAvgMatch!==null?data.overallAvgMatch+"%":"—"}</p>
+                <p style="font-size:0.72rem;color:#8892A8;margin-top:2px">Avg Applicant Match</p>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem">
+            <div class="card">
+                <p class="section-title">Applicant Status Breakdown</p>
+                <div style="max-width:260px;margin:0 auto"><canvas id="statusChart"></canvas></div>
+            </div>
+            <div class="card">
+                <p class="section-title">Applicants per Job</p>
+                <canvas id="perJobChart" height="180"></canvas>
+            </div>
+        </div>
+
+        <!-- Per-job table -->
+        <div class="card">
+            <p class="section-title">Job Performance</p>
+            <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+                <thead>
+                    <tr style="border-bottom:1px solid #232C42;text-align:left">
+                        <th style="padding:0.5rem;color:#8892A8;font-weight:600">Job</th>
+                        <th style="padding:0.5rem;color:#8892A8;font-weight:600">Applicants</th>
+                        <th style="padding:0.5rem;color:#8892A8;font-weight:600">Gap Checks</th>
+                        <th style="padding:0.5rem;color:#8892A8;font-weight:600">Avg Match</th>
+                        <th style="padding:0.5rem;color:#8892A8;font-weight:600">Conversion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.perJob.map(j => `
+                    <tr style="border-bottom:1px solid #1B2436">
+                        <td style="padding:0.6rem 0.5rem;color:#E7ECF5;font-weight:600">${j.title}<br><span style="color:#8892A8;font-weight:400;font-size:0.72rem">${j.company}</span></td>
+                        <td style="padding:0.6rem 0.5rem;color:#A8B3C7">${j.applicantsCount}</td>
+                        <td style="padding:0.6rem 0.5rem;color:#A8B3C7">${j.skillGapChecks}</td>
+                        <td style="padding:0.6rem 0.5rem;color:#A8B3C7">${j.avgMatchScore!==null?j.avgMatchScore+"%":"—"}</td>
+                        <td style="padding:0.6rem 0.5rem;color:#A8B3C7">${j.conversionRate!==null?j.conversionRate+"%":"—"}</td>
+                    </tr>`).join("")}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>`;
+
+    renderAnalyticsCharts(data);
+}
+
+function renderAnalyticsCharts(data) {
+    // Destroy previous chart instances before redrawing — Chart.js throws if
+    // you create a new chart on a canvas that already has one attached.
+    if (_statusChartInstance) { _statusChartInstance.destroy(); _statusChartInstance = null; }
+    if (_perJobChartInstance) { _perJobChartInstance.destroy(); _perJobChartInstance = null; }
+
+    const statusCtx = document.getElementById("statusChart");
+    if (statusCtx) {
+        const labels = Object.keys(data.statusBreakdown).filter(k => data.statusBreakdown[k] > 0);
+        const values = labels.map(k => data.statusBreakdown[k]);
+        const colorMap = { Applied:"#3B82F6", Reviewed:"#F59E0B", Shortlisted:"#00D4FF", Offered:"#10B981", Rejected:"#EF4444" };
+
+        _statusChartInstance = new Chart(statusCtx, {
+            type: "doughnut",
+            data: {
+                labels,
+                datasets: [{ data: values, backgroundColor: labels.map(l => colorMap[l]), borderColor: "#131A2A", borderWidth: 2 }]
+            },
+            options: {
+                plugins: { legend: { position: "bottom", labels: { color: "#A8B3C7", font: { size: 11 }, padding: 12 } } }
+            }
+        });
+    }
+
+    const perJobCtx = document.getElementById("perJobChart");
+    if (perJobCtx) {
+        _perJobChartInstance = new Chart(perJobCtx, {
+            type: "bar",
+            data: {
+                labels: data.perJob.map(j => j.title.length > 14 ? j.title.slice(0, 14) + "…" : j.title),
+                datasets: [{ label: "Applicants", data: data.perJob.map(j => j.applicantsCount), backgroundColor: "#00D4FF", borderRadius: 6 }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: "#8892A8", font: { size: 10 } }, grid: { color: "#1B2436" } },
+                    y: { ticks: { color: "#8892A8", stepSize: 1 }, grid: { color: "#1B2436" }, beginAtZero: true }
+                }
+            }
+        });
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1029,9 +1461,15 @@ function showGapModal(title, required, missing, userSkills) {
         </div>
         ${(missing||[]).length?`
         <div style="margin-bottom:1rem">
-            <p style="font-size:0.65rem;font-weight:700;color:#F87171;text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.5rem">Missing (${missing.length})</p>
-            <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
-                ${missing.map(s=>`<span style="background:rgba(239,68,68,0.12);color:#F87171;padding:0.2rem 0.65rem;border-radius:9999px;font-size:0.75rem;font-weight:700">${s}</span>`).join("")}
+            <p style="font-size:0.65rem;font-weight:700;color:#F87171;text-transform:uppercase;letter-spacing:.07em;margin-bottom:0.5rem">Missing (${missing.length}) — click to learn</p>
+            <div style="display:flex;flex-direction:column;gap:0.4rem">
+                ${missing.map(s=>{
+                    const res = getSkillResource(s);
+                    return `<a href="${res.url}" target="_blank" style="display:flex;align-items:center;justify-content:space-between;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);padding:0.45rem 0.7rem;border-radius:10px;text-decoration:none">
+                        <span style="color:#F87171;font-size:0.78rem;font-weight:700">${s}</span>
+                        <span style="color:#F87171;font-size:0.68rem;font-weight:600;opacity:0.85;display:flex;align-items:center;gap:4px"><i class="fas fa-graduation-cap"></i>${res.label}</span>
+                    </a>`;
+                }).join("")}
             </div>
         </div>`:""}
         ${have.length?`
@@ -1070,6 +1508,102 @@ const MASTER_SKILLS = [
     "Three.js","D3.js","Chart.js","Prisma","Sequelize","Mongoose","Apache Kafka","RabbitMQ",
     "Elasticsearch","Machine Learning Ops","Data Structures","Cloud Computing","Serverless"
 ];
+
+// ── Learning resource suggestions ──────────────────────────────────────────────
+// Curated, well-known free resources for the most common skills. Anything not
+// listed here falls back to a generated YouTube search link — so every skill
+// always has a "Learn" link, never a dead end.
+const SKILL_RESOURCES = {
+    "react":                { label: "React Docs",        url: "https://react.dev/learn" },
+    "react native":         { label: "React Native Docs", url: "https://reactnative.dev/docs/getting-started" },
+    "angular":              { label: "Angular Docs",       url: "https://angular.dev/tutorials" },
+    "vue.js":                { label: "Vue.js Guide",       url: "https://vuejs.org/guide/introduction.html" },
+    "next.js":               { label: "Next.js Learn",      url: "https://nextjs.org/learn" },
+    "svelte":               { label: "Svelte Tutorial",    url: "https://svelte.dev/tutorial" },
+    "html":                 { label: "MDN HTML Guide",     url: "https://developer.mozilla.org/en-US/docs/Web/HTML" },
+    "css":                  { label: "MDN CSS Guide",      url: "https://developer.mozilla.org/en-US/docs/Web/CSS" },
+    "tailwind css":         { label: "Tailwind Docs",      url: "https://tailwindcss.com/docs" },
+    "bootstrap":            { label: "Bootstrap Docs",     url: "https://getbootstrap.com/docs" },
+    "javascript":           { label: "freeCodeCamp JS",    url: "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/" },
+    "typescript":           { label: "TypeScript Handbook",url: "https://www.typescriptlang.org/docs/handbook/intro.html" },
+    "jquery":               { label: "jQuery Learning",    url: "https://learn.jquery.com/" },
+    "redux":                { label: "Redux Essentials",   url: "https://redux.js.org/tutorials/essentials/part-1-overview-concepts" },
+    "node.js":               { label: "Node.js Docs",       url: "https://nodejs.org/en/learn/getting-started/introduction-to-nodejs" },
+    "express.js":            { label: "Express Guide",      url: "https://expressjs.com/en/starter/installing.html" },
+    "django":               { label: "Django Tutorial",    url: "https://docs.djangoproject.com/en/stable/intro/tutorial01/" },
+    "flask":                { label: "Flask Quickstart",   url: "https://flask.palletsprojects.com/en/latest/quickstart/" },
+    "fastapi":              { label: "FastAPI Tutorial",   url: "https://fastapi.tiangolo.com/tutorial/" },
+    "spring boot":          { label: "Spring Boot Guides", url: "https://spring.io/guides" },
+    "php":                  { label: "PHP Manual",         url: "https://www.php.net/manual/en/getting-started.php" },
+    "laravel":              { label: "Laravel Docs",       url: "https://laravel.com/docs" },
+    "python":               { label: "Python Official Tutorial", url: "https://docs.python.org/3/tutorial/" },
+    "java":                 { label: "Oracle Java Tutorials", url: "https://docs.oracle.com/javase/tutorial/" },
+    "c":                    { label: "Learn-C.org",        url: "https://www.learn-c.org/" },
+    "c++":                  { label: "LearnCpp.com",       url: "https://www.learncpp.com/" },
+    "c#":                   { label: "Microsoft C# Docs",  url: "https://learn.microsoft.com/en-us/dotnet/csharp/" },
+    "go":                   { label: "Tour of Go",         url: "https://go.dev/tour/welcome/1" },
+    "rust":                 { label: "The Rust Book",      url: "https://doc.rust-lang.org/book/" },
+    "kotlin":               { label: "Kotlin Docs",        url: "https://kotlinlang.org/docs/getting-started.html" },
+    "swift":                { label: "Swift.org Guide",    url: "https://www.swift.org/getting-started/" },
+    "mysql":                { label: "MySQL Tutorial",     url: "https://dev.mysql.com/doc/mysql-tutorial-excerpt/en/" },
+    "postgresql":           { label: "PostgreSQL Tutorial",url: "https://www.postgresqltutorial.com/" },
+    "mongodb":              { label: "MongoDB University", url: "https://learn.mongodb.com/" },
+    "redis":                { label: "Redis Docs",         url: "https://redis.io/docs/latest/develop/" },
+    "firebase":             { label: "Firebase Docs",      url: "https://firebase.google.com/docs" },
+    "graphql":              { label: "GraphQL Docs",       url: "https://graphql.org/learn/" },
+    "rest api":             { label: "REST API Tutorial",  url: "https://restfulapi.net/" },
+    "docker":               { label: "Docker Get Started", url: "https://docs.docker.com/get-started/" },
+    "kubernetes":           { label: "Kubernetes Basics",  url: "https://kubernetes.io/docs/tutorials/kubernetes-basics/" },
+    "aws":                  { label: "AWS Free Training",  url: "https://aws.amazon.com/training/digital/" },
+    "azure":                { label: "Microsoft Learn Azure", url: "https://learn.microsoft.com/en-us/training/azure/" },
+    "google cloud platform":{ label: "Google Cloud Skills Boost", url: "https://www.cloudskillsboost.google/" },
+    "git":                  { label: "Git Handbook",       url: "https://guides.github.com/introduction/git-handbook/" },
+    "github":               { label: "GitHub Docs",        url: "https://docs.github.com/en/get-started" },
+    "linux":                { label: "Linux Journey",      url: "https://linuxjourney.com/" },
+    "machine learning":     { label: "Google ML Crash Course", url: "https://developers.google.com/machine-learning/crash-course" },
+    "deep learning":        { label: "DeepLearning.AI",    url: "https://www.deeplearning.ai/" },
+    "tensorflow":           { label: "TensorFlow Tutorials", url: "https://www.tensorflow.org/tutorials" },
+    "pytorch":              { label: "PyTorch Tutorials",  url: "https://pytorch.org/tutorials/" },
+    "pandas":               { label: "Pandas Docs",        url: "https://pandas.pydata.org/docs/getting_started/index.html" },
+    "numpy":                { label: "NumPy Quickstart",   url: "https://numpy.org/doc/stable/user/quickstart.html" },
+    "power bi":              { label: "Power BI Guided Learning", url: "https://learn.microsoft.com/en-us/power-bi/guided-learning/" },
+    "tableau":              { label: "Tableau Training",   url: "https://www.tableau.com/learn/training" },
+    "excel":                { label: "Excel Basics (Microsoft)", url: "https://support.microsoft.com/en-us/excel" },
+    "flutter":              { label: "Flutter Docs",       url: "https://docs.flutter.dev/" },
+    "socket.io":             { label: "Socket.IO Docs",     url: "https://socket.io/docs/v4/" },
+    "system design":        { label: "System Design Primer", url: "https://github.com/donnemartin/system-design-primer" },
+    "dsa":                  { label: "DSA Roadmap",        url: "https://roadmap.sh/datastructures-and-algorithms" },
+    "algorithms":           { label: "Algorithms (roadmap.sh)", url: "https://roadmap.sh/datastructures-and-algorithms" },
+    "operating systems":    { label: "OS Concepts (OSTEP)",url: "https://pages.cs.wisc.edu/~remzi/OSTEP/" },
+    "computer networks":    { label: "Computer Networks (NPTEL)", url: "https://nptel.ac.in/courses/106105183" },
+    "dbms":                 { label: "DBMS (GeeksforGeeks)",url: "https://www.geeksforgeeks.org/dbms/" },
+    "blockchain":           { label: "Blockchain Basics",  url: "https://ethereum.org/en/developers/docs/" },
+    "cybersecurity":        { label: "Cybersecurity Roadmap", url: "https://roadmap.sh/cyber-security" },
+    "ui/ux design":         { label: "UX Design Basics (Google)", url: "https://www.coursera.org/professional-certificates/google-ux-design" },
+    "figma":                { label: "Figma Learn",        url: "https://help.figma.com/hc/en-us/categories/360002042754-Getting-started" },
+    "agile":                { label: "Agile Guide",        url: "https://www.atlassian.com/agile" },
+    "scrum":                { label: "Scrum Guide",        url: "https://scrumguides.org/" },
+    "jest":                 { label: "Jest Docs",          url: "https://jestjs.io/docs/getting-started" },
+    "cypress":              { label: "Cypress Docs",       url: "https://docs.cypress.io/guides/overview/why-cypress" },
+    "selenium":             { label: "Selenium Docs",      url: "https://www.selenium.dev/documentation/" },
+    "postman":              { label: "Postman Learning Center", url: "https://learning.postman.com/" },
+    "webpack":              { label: "Webpack Concepts",   url: "https://webpack.js.org/concepts/" },
+    "vite":                 { label: "Vite Guide",         url: "https://vite.dev/guide/" },
+    "three.js":              { label: "Three.js Manual",    url: "https://threejs.org/manual/" },
+    "d3.js":                 { label: "D3.js Learn",        url: "https://d3js.org/getting-started" },
+    "chart.js":              { label: "Chart.js Docs",      url: "https://www.chartjs.org/docs/latest/" },
+    "prisma":               { label: "Prisma Docs",        url: "https://www.prisma.io/docs/getting-started" },
+    "mongoose":              { label: "Mongoose Docs",      url: "https://mongoosejs.com/docs/guide.html" },
+    "data structures":      { label: "Data Structures (roadmap.sh)", url: "https://roadmap.sh/datastructures-and-algorithms" },
+    "cloud computing":      { label: "Cloud Computing Basics", url: "https://cloud.google.com/learn/what-is-cloud-computing" }
+};
+
+function getSkillResource(skill) {
+    const key = skill.trim().toLowerCase();
+    if (SKILL_RESOURCES[key]) return SKILL_RESOURCES[key];
+    // Fallback — every skill gets a link, even ones outside the curated list
+    return { label: "Search tutorials", url: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + " tutorial")}` };
+}
 
 function getSkillMatches(query) {
     const q = query.trim().toLowerCase();
