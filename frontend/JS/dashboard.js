@@ -23,7 +23,7 @@ document.getElementById("sidebarAvatar").textContent  = initials;
 document.getElementById("sidebarName").textContent    = userName || email.split("@")[0];
 document.getElementById("sidebarEmail").textContent   = email;
 
-const roleBadgeColor = { student: "background:rgba(59,130,246,0.15);color:#7CA8FF", recruiter: "background:rgba(0,212,255,0.16);color:#4FE0FF" };
+const roleBadgeColor = { student: "background:rgba(59,130,246,0.15);color:#7CA8FF", recruiter: "background:rgba(56,189,248,0.16);color:#7DD3FC" };
 const roleLabel      = { student: "🎓 Student", recruiter: "🏢 Recruiter" };
 const roleEl = document.getElementById("sidebarRole");
 roleEl.textContent = roleLabel[role] || role;
@@ -34,7 +34,7 @@ document.getElementById("headerBadge").textContent = role === "recruiter"
     : (localStorage.getItem("userProgram") || "Student");
 document.getElementById("headerBadge").className = `tag`;
 document.getElementById("headerBadge").style.cssText = role === "recruiter"
-    ? "background:rgba(0,212,255,0.14);color:#4FE0FF"
+    ? "background:rgba(56,189,248,0.14);color:#7DD3FC"
     : "background:rgba(59,130,246,0.14);color:#7CA8FF";
 
 const studentNav = `
@@ -46,6 +46,8 @@ const studentNav = `
     <button class="nav-btn" id="nav-jobs"    onclick="goNav('jobs')">   <i class="fas fa-briefcase"></i>Job Portal</button>
     <button class="nav-btn" id="nav-myapps"  onclick="goNav('myapps')"> <i class="fas fa-paper-plane"></i>My Applications</button>
     <button class="nav-btn" id="nav-messages" onclick="goNav('messages')"><i class="fas fa-comment-dots"></i>Messages</button>
+    <p class="nav-section-label">Network</p>
+    <button class="nav-btn" id="nav-profiles" onclick="goNav('profiles')"><i class="fas fa-users"></i>Browse Peers</button>
     <p class="nav-section-label">Account</p>
     <button class="nav-btn" id="nav-profile" onclick="goNav('profile')"><i class="fas fa-user"></i>My Profile</button>`;
 
@@ -98,6 +100,11 @@ function loadModule(mod) {
     if (btn) btn.classList.add("active");
     document.getElementById("pageTitle").textContent = pageTitles[mod] || "";
     const view = document.getElementById("mainView");
+    // Remember the current page so a browser refresh reopens it instead of
+    // always jumping back to the Dashboard.
+    if (mod !== "startup-detail" && mod !== "conversation-detail") {
+        localStorage.setItem("lastModule", mod);
+    }
     // cleanup socket rooms when leaving detail views
     if (_currentStartupId && mod !== "startup-detail") {
         _currentStartupId = null;
@@ -183,7 +190,7 @@ function renderHome(view) {
     <div style="display:flex;flex-direction:column;gap:1.25rem">
 
         <!-- Hero banner -->
-        <div style="background:linear-gradient(135deg,${isRec?"#1E3A5F,#0F1F35":"#00D4FF,#4FE0FF"});border-radius:20px;padding:2rem;color:white;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
+        <div style="background:linear-gradient(135deg,${isRec?"#1E3A5F,#0F1F35":"#38BDF8,#7DD3FC"});border-radius:20px;padding:2rem;color:white;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.4)">
             <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:rgba(255,255,255,0.05);border-radius:50%"></div>
             <div style="position:absolute;bottom:-60px;right:80px;width:120px;height:120px;background:rgba(255,255,255,0.04);border-radius:50%"></div>
             <div style="position:relative">
@@ -194,9 +201,9 @@ function renderHome(view) {
                 </p>
                 <div style="display:flex;gap:0.65rem;flex-wrap:wrap">
                     ${isRec
-                        ? `<button onclick="loadModule('postjob')" style="background:white;color:#00D4FF;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Post a Job</button>
+                        ? `<button onclick="loadModule('postjob')" style="background:white;color:#38BDF8;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Post a Job</button>
                            <button onclick="loadModule('profiles')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Browse Students</button>`
-                        : `<button onclick="loadModule('jobs')" style="background:white;color:#00D4FF;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Browse Jobs</button>
+                        : `<button onclick="loadModule('jobs')" style="background:white;color:#38BDF8;border:none;padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Browse Jobs</button>
                            <button onclick="loadModule('pitch')" style="background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.2);padding:0.55rem 1.1rem;border-radius:10px;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:Inter,sans-serif">Pitch an Idea</button>`}
                 </div>
             </div>
@@ -208,12 +215,12 @@ function renderHome(view) {
                 <p class="section-title"><i class="fas fa-bolt" style="color:#f59e0b;margin-right:6px"></i>Quick Actions</p>
                 <div style="display:flex;flex-direction:column;gap:0.5rem">
                     ${isRec ? `
-                    <button onclick="loadModule('postjob')"  class="quick-action-btn"><i class="fas fa-plus-circle" style="color:#4FE0FF"></i> Post a New Job</button>
-                    <button onclick="loadModule('myjobs')"   class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#4FE0FF"></i> View My Posted Jobs</button>
+                    <button onclick="loadModule('postjob')"  class="quick-action-btn"><i class="fas fa-plus-circle" style="color:#7DD3FC"></i> Post a New Job</button>
+                    <button onclick="loadModule('myjobs')"   class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#7DD3FC"></i> View My Posted Jobs</button>
                     <button onclick="loadModule('profiles')" class="quick-action-btn"><i class="fas fa-users"       style="color:#34d399"></i> Browse Student Profiles</button>
                     <button onclick="loadModule('explore')"  class="quick-action-btn"><i class="fas fa-search"      style="color:#f59e0b"></i> Explore Startups</button>
                     ` : `
-                    <button onclick="loadModule('profile')"  class="quick-action-btn"><i class="fas fa-user-edit"   style="color:#4FE0FF"></i> Update Profile & Skills</button>
+                    <button onclick="loadModule('profile')"  class="quick-action-btn"><i class="fas fa-user-edit"   style="color:#7DD3FC"></i> Update Profile & Skills</button>
                     <button onclick="loadModule('jobs')"     class="quick-action-btn"><i class="fas fa-briefcase"   style="color:#3B82F6"></i> Browse All Jobs</button>
                     <button onclick="loadModule('myapps')"   class="quick-action-btn"><i class="fas fa-paper-plane" style="color:#34d399"></i> My Applications</button>
                     <button onclick="loadModule('pitch')"    class="quick-action-btn"><i class="fas fa-lightbulb"   style="color:#f59e0b"></i> Pitch a Startup Idea</button>
@@ -221,7 +228,7 @@ function renderHome(view) {
                 </div>
             </div>
             <div class="card">
-                <p class="section-title"><i class="fas fa-briefcase" style="color:#4FE0FF;margin-right:6px"></i>Latest Jobs</p>
+                <p class="section-title"><i class="fas fa-briefcase" style="color:#7DD3FC;margin-right:6px"></i>Latest Jobs</p>
                 <div id="homeJobsList"><p style="color:#8892A8;font-size:0.83rem">Loading…</p></div>
             </div>
         </div>
@@ -234,7 +241,7 @@ function renderHome(view) {
         font-size:0.82rem;font-weight:600;color:#C7D0E0;font-family:Inter,sans-serif;
         transition:all 0.15s;text-align:left;
     }
-    .quick-action-btn:hover { background:rgba(59,130,246,0.14);border-color:rgba(0,212,255,0.35);color:#7CA8FF; }
+    .quick-action-btn:hover { background:rgba(59,130,246,0.14);border-color:rgba(56,189,248,0.35);color:#7CA8FF; }
     @media(max-width:600px){
         .quick-action-btn { padding:0.55rem 0.7rem; }
         div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr!important; }
@@ -264,7 +271,7 @@ function renderProfile(view) {
         <div class="card" id="profileCard"><p style="color:#8892A8;font-size:0.85rem">Loading…</p></div>
         ${role==="student"?`
         <div class="card">
-            <p class="section-title"><i class="fas fa-tools" style="color:#4FE0FF;margin-right:6px"></i>Skills</p>
+            <p class="section-title"><i class="fas fa-tools" style="color:#7DD3FC;margin-right:6px"></i>Skills</p>
             <div id="skillsList" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem"></div>
             <div style="display:flex;gap:0.65rem">
                 <input class="input-field" id="skillInput" placeholder="Add a skill (e.g. React)" style="max-width:260px" onkeydown="if(event.key==='Enter')addSkill()">
@@ -273,7 +280,7 @@ function renderProfile(view) {
         </div>`:""}
         ${role==="student"?`
         <div class="card">
-            <p class="section-title"><i class="fas fa-file-arrow-up" style="color:#4FE0FF;margin-right:6px"></i>Resume</p>
+            <p class="section-title"><i class="fas fa-file-arrow-up" style="color:#7DD3FC;margin-right:6px"></i>Resume</p>
             <div id="resumeStatus" style="margin-bottom:0.85rem"></div>
             <div style="display:flex;gap:0.65rem;align-items:center;flex-wrap:wrap">
                 <input type="file" id="resumeFile" accept="application/pdf" class="input-field" style="max-width:280px;padding:0.5rem 0.7rem">
@@ -283,7 +290,7 @@ function renderProfile(view) {
             <div id="resumeSuggestions" style="margin-top:0.85rem"></div>
         </div>`:""}
         <div class="card">
-            <p class="section-title"><i class="fas fa-edit" style="color:#4FE0FF;margin-right:6px"></i>Update Details</p>
+            <p class="section-title"><i class="fas fa-edit" style="color:#7DD3FC;margin-right:6px"></i>Update Details</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:1rem">
                 <input class="input-field" id="profileBio"       placeholder="Bio / About">
                 <input class="input-field" id="profilePhone"     placeholder="Phone">
@@ -299,8 +306,8 @@ function renderProfile(view) {
                 Delete just your profile to hide it from others, or delete your whole account to remove your platform access and related visible records.
             </p>
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-                <button class="btn btn-red" onclick="deleteMyProfile()"><i class="fas fa-user-slash"></i> Delete Profile</button>
-                <button class="btn btn-red" style="background:rgba(239,68,68,0.4)" onclick="deleteMyAccount()"><i class="fas fa-trash"></i> Delete Account</button>
+                <button onclick="deleteMyProfile()" style="background:rgba(239,68,68,0.12);color:#F87171;border:1.5px solid rgba(239,68,68,0.35);padding:0.58rem 1.1rem;border-radius:9px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:Inter,sans-serif;display:inline-flex;align-items:center;gap:0.35rem"><i class="fas fa-user-slash"></i> Delete Profile</button>
+                <button class="btn btn-red" onclick="deleteMyAccount()"><i class="fas fa-trash"></i> Delete Account</button>
             </div>
         </div>
     </div>`;
@@ -324,7 +331,7 @@ async function loadProfileData() {
         const skills = data.skills?.[0]?.skill || [];
         card.innerHTML = `
             <div style="display:flex;align-items:center;gap:1rem">
-                <div style="width:52px;height:52px;background:linear-gradient(135deg,#00D4FF,#4FE0FF);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:white;flex-shrink:0">
+                <div style="width:52px;height:52px;background:linear-gradient(135deg,#38BDF8,#7DD3FC);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;color:#041016;flex-shrink:0">
                     ${(data.name?.[0]||email)[0].toUpperCase()}
                 </div>
                 <div>
@@ -335,9 +342,9 @@ async function loadProfileData() {
             </div>
             ${data.bio?.[0]?`<p style="color:#A8B3C7;font-size:0.85rem;margin-top:1rem;line-height:1.65">${data.bio[0]}</p>`:""}
             <div style="display:flex;gap:0.65rem;margin-top:0.85rem;flex-wrap:wrap">
-                ${data.github?.[0]   ?`<a href="${data.github[0]}"   target="_blank" style="font-size:0.75rem;color:#00D4FF;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-github"></i>GitHub</a>`:""}
-                ${data.linkedin?.[0] ?`<a href="${data.linkedin[0]}" target="_blank" style="font-size:0.75rem;color:#00D4FF;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-linkedin"></i>LinkedIn</a>`:""}
-                ${data.portfolio?.[0]?`<a href="${data.portfolio[0]}" target="_blank" style="font-size:0.75rem;color:#00D4FF;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fas fa-globe"></i>Portfolio</a>`:""}
+                ${data.github?.[0]   ?`<a href="${data.github[0]}"   target="_blank" style="font-size:0.75rem;color:#38BDF8;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-github"></i>GitHub</a>`:""}
+                ${data.linkedin?.[0] ?`<a href="${data.linkedin[0]}" target="_blank" style="font-size:0.75rem;color:#38BDF8;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fab fa-linkedin"></i>LinkedIn</a>`:""}
+                ${data.portfolio?.[0]?`<a href="${data.portfolio[0]}" target="_blank" style="font-size:0.75rem;color:#38BDF8;text-decoration:none;display:flex;align-items:center;gap:4px"><i class="fas fa-globe"></i>Portfolio</a>`:""}
             </div>`;
         ["Bio","Phone","Github","Linkedin","Portfolio"].forEach(f=>{
             const el=document.getElementById(`profile${f}`);
@@ -345,9 +352,14 @@ async function loadProfileData() {
         });
         const sl = document.getElementById("skillsList");
         if(sl) {
+            const endorsements = data.endorsements || [];
             sl.innerHTML = skills.length
-                ? skills.map(s=>`<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(59,130,246,0.14);color:#7CA8FF;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700">
-                    ${s}<button onclick="deleteSkill('${s}')" style="background:none;border:none;cursor:pointer;color:#4FE0FF;font-size:14px;line-height:1;padding:0;margin-left:2px" title="Remove">×</button></span>`).join("")
+                ? skills.map(s=>{
+                    const entry = endorsements.find(e=>e.skill===s);
+                    const count = entry?.endorsers?.length || 0;
+                    return `<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(59,130,246,0.14);color:#7CA8FF;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700">
+                    ${s}${count?`<span style="background:rgba(56,189,248,0.2);color:#7DD3FC;padding:0.05rem 0.4rem;border-radius:9999px;font-size:0.65rem" title="${count} endorsement${count!==1?"s":""}"><i class="fas fa-star" style="font-size:8px;margin-right:2px"></i>${count}</span>`:""}<button onclick="deleteSkill('${s}')" style="background:none;border:none;cursor:pointer;color:#7DD3FC;font-size:14px;line-height:1;padding:0;margin-left:2px" title="Remove">×</button></span>`;
+                }).join("")
                 : `<p style="color:#8892A8;font-size:0.83rem">No skills added yet.</p>`;
         }
         const resumeStatusEl = document.getElementById("resumeStatus");
@@ -387,6 +399,25 @@ async function deleteSkill(skill) {
     toast(data.message);
     _myProfileSkills = null; // invalidate cache so job match % recalculates next time
     loadProfileData();
+}
+
+async function toggleEndorse(targetEmail, skill, btnEl) {
+    btnEl.disabled = true;
+    try {
+        const data = await (await fetch(`${API}/profile/endorse`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({endorserEmail:email,targetEmail,skill})})).json();
+        if (data.message !== "ok") { toast(data.message || "Could not endorse", true); btnEl.disabled = false; return; }
+
+        const iEndorsed = data.endorsed;
+        const count = data.count;
+        btnEl.style.background = iEndorsed ? "rgba(56,189,248,0.18)" : "rgba(59,130,246,0.14)";
+        btnEl.style.color      = iEndorsed ? "#7DD3FC" : "#7CA8FF";
+        btnEl.style.borderColor = iEndorsed ? "rgba(56,189,248,0.4)" : "transparent";
+        btnEl.innerHTML = `<i class="fas ${iEndorsed?"fa-check-circle":"fa-plus-circle"}" style="font-size:9px"></i>${skill}${count?` · ${count}`:""}`;
+        toast(iEndorsed ? `Endorsed "${skill}"` : `Removed endorsement`);
+    } catch {
+        toast("Could not update endorsement", true);
+    }
+    btnEl.disabled = false;
 }
 
 async function uploadResume() {
@@ -434,9 +465,9 @@ function renderResumeSuggestions(suggested) {
     }
 
     box.innerHTML = `
-        <p style="font-size:0.72rem;font-weight:700;color:#4FE0FF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Found in your resume — click to add</p>
+        <p style="font-size:0.72rem;font-weight:700;color:#7DD3FC;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Found in your resume — click to add</p>
         <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
-            ${newOnes.map(s => `<button onclick="quickAddSkill('${s.replace(/'/g,"\\'")}', this)" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,212,255,0.12);border:1px dashed rgba(0,212,255,0.4);color:#4FE0FF;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer"><i class="fas fa-plus" style="font-size:10px"></i>${s}</button>`).join("")}
+            ${newOnes.map(s => `<button onclick="quickAddSkill('${s.replace(/'/g,"\\'")}', this)" style="display:inline-flex;align-items:center;gap:5px;background:rgba(56,189,248,0.12);border:1px dashed rgba(56,189,248,0.4);color:#7DD3FC;padding:0.25rem 0.7rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer"><i class="fas fa-plus" style="font-size:10px"></i>${s}</button>`).join("")}
         </div>`;
 }
 
@@ -542,7 +573,7 @@ async function loadStartups() {
         const data = await (await fetch(`${API}/startup/all`)).json();
         const grid = document.getElementById("startupGrid");
         if(!data.length){grid.innerHTML=`<p style="color:#8892A8;text-align:center;margin-top:3rem;grid-column:1/-1">No startups yet.</p>`;return;}
-        const grads = [["#00D4FF","#00A8CC"],["#FBBF24","#D97706"],["#3B82F6","#7CA8FF"],["#0EA5C4","#0B4A56"],["#7C3AED","#5B21B6"]];
+        const grads = [["#38BDF8","#0EA5E9"],["#FBBF24","#D97706"],["#3B82F6","#7CA8FF"],["#0EA5C4","#0B4A56"],["#7C3AED","#5B21B6"]];
         grid.innerHTML = data.map((s,i)=>{
             const id=s.id?.[0]||"", title=s.title?.[0]||"Untitled", desc=s.description?.[0]||"";
             const creator=s.creator?.[0]||"", skills=s.requiredSkills?.[0]?.skill||[], members=s.team?.[0]?.member?.length||1;
@@ -698,7 +729,7 @@ function renderStartupDetail(s) {
                     <div style="display:flex;align-items:center;gap:0.5rem;background:#1B2436;border:1px solid #232C42;border-radius:10px;padding:0.4rem 0.75rem">
                         <div style="width:26px;height:26px;border-radius:7px;background:rgba(59,130,246,0.14);color:#7CA8FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.7rem">${(m[0]||"?").toUpperCase()}</div>
                         <span style="font-size:0.75rem;color:#A8B3C7">${m}</span>
-                        ${m===creator?`<span style="font-size:0.62rem;color:#4FE0FF;font-weight:700">founder</span>`:""}
+                        ${m===creator?`<span style="font-size:0.62rem;color:#7DD3FC;font-weight:700">founder</span>`:""}
                     </div>`).join("")}
                 </div>
             </div>
@@ -713,7 +744,7 @@ function renderStartupDetail(s) {
                 <span style="font-size:0.68rem;color:#8892A8;font-family:JetBrains Mono,monospace">real-time</span>
             </div>
 
-            ${canChat ? "" : `<div style="margin-bottom:1rem;background:rgba(0,212,255,0.14);border:1px solid rgba(245,158,11,0.3);color:#4FE0FF;padding:0.75rem 0.9rem;border-radius:12px;font-size:0.78rem">Join this startup to participate in the team chat.</div>`}
+            ${canChat ? "" : `<div style="margin-bottom:1rem;background:rgba(56,189,248,0.14);border:1px solid rgba(245,158,11,0.3);color:#7DD3FC;padding:0.75rem 0.9rem;border-radius:12px;font-size:0.78rem">Join this startup to participate in the team chat.</div>`}
 
             <div id="msgList" style="min-height:180px;max-height:340px;overflow-y:auto;margin-bottom:1rem;padding-right:4px">
                 ${msgs.length ? msgs.map(m=>{
@@ -785,7 +816,7 @@ async function loadConversations() {
         }
         el.innerHTML = `<div style="display:flex;flex-direction:column;gap:0.6rem">` + conversations.map(c => `
             <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:0.85rem" onclick="viewConversation('${c.id}')">
-                <div style="width:42px;height:42px;border-radius:12px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;flex-shrink:0">${c.otherParty[0].toUpperCase()}</div>
+                <div style="width:42px;height:42px;border-radius:12px;background:rgba(56,189,248,0.14);color:#38BDF8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;flex-shrink:0">${c.otherParty[0].toUpperCase()}</div>
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
                         <p style="font-weight:700;color:#E7ECF5;font-size:0.87rem">${c.otherParty}</p>
@@ -823,7 +854,7 @@ async function viewConversation(id) {
 
         <div class="card" style="display:flex;flex-direction:column;gap:0">
             <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;border-bottom:1px solid #232C42;padding-bottom:1rem">
-                <div style="width:40px;height:40px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800">${convo.otherParty[0].toUpperCase()}</div>
+                <div style="width:40px;height:40px;border-radius:11px;background:rgba(56,189,248,0.14);color:#38BDF8;display:flex;align-items:center;justify-content:center;font-weight:800">${convo.otherParty[0].toUpperCase()}</div>
                 <div>
                     <p style="font-weight:800;color:#E7ECF5;font-size:0.9rem">${convo.otherParty}</p>
                     <p style="font-size:0.72rem;color:#8892A8">${convo.jobTitle}${convo.company?" · "+convo.company:""} <span class="live-dot" style="margin-left:6px"></span></p>
@@ -983,6 +1014,7 @@ function renderJobsList(jobs) {
             </div>
             <div style="display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap;align-items:center">
                 ${role==="student"?`<button class="btn-sm-outline" onclick="checkJobGap('${j.id}','${j.title}')"><i class="fas fa-chart-bar"></i> Skill Gap</button>`:""}
+                ${role==="student"&&!isOwn?`<button class="btn-sm-outline" onclick="generateCoverLetter('${j.id}','${j.title.replace(/'/g,"\\'")}',this)"><i class="fas fa-feather-pointed"></i> Cover Letter</button>`:""}
                 ${role==="student"&&!isOwn?`<button class="btn btn-indigo" style="padding:0.38rem 0.85rem;font-size:0.75rem" onclick="applyJob('${j.id}')"><i class="fas fa-paper-plane"></i> Apply</button>`:""}
                 ${isOwn?`<button class="btn-sm-outline" onclick="viewApplicants('${j.id}','${j.title}')"><i class="fas fa-users"></i> Applicants</button>
                    <button class="btn btn-red" style="padding:0.38rem 0.75rem;font-size:0.75rem" onclick="deleteJob('${j.id}')"><i class="fas fa-trash"></i></button>`:""}
@@ -1015,6 +1047,54 @@ async function checkJobGap(id, title) {
     showGapModal(title,data.required,data.missing,data.userSkills);
 }
 
+async function generateCoverLetter(jobId, jobTitle, btnEl) {
+    const originalHTML = btnEl.innerHTML;
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Writing…';
+
+    try {
+        const data = await (await fetch(`${API}/cover-letter/generate`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,jobId})})).json();
+        if (data.message !== "ok") {
+            toast(data.message || "Could not generate cover letter", true);
+        } else {
+            showCoverLetterModal(jobTitle, data.letter);
+        }
+    } catch {
+        toast("Could not reach the server", true);
+    }
+
+    btnEl.disabled = false;
+    btnEl.innerHTML = originalHTML;
+}
+
+function showCoverLetterModal(jobTitle, letterText) {
+    const modal = document.createElement("div");
+    modal.id = "coverLetterModal";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem";
+    modal.innerHTML = `
+    <div style="background:#131A2A;border:1px solid #232C42;border-radius:20px;padding:1.75rem;max-width:560px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.5);max-height:85vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+            <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5"><i class="fas fa-feather-pointed" style="color:#38BDF8;margin-right:8px"></i>Cover Letter — ${jobTitle}</h3>
+            <button onclick="document.getElementById('coverLetterModal').remove()" style="color:#8892A8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
+        </div>
+        <textarea id="coverLetterText" style="width:100%;min-height:320px;background:#1B2436;border:1px solid #232C42;border-radius:12px;padding:1rem;color:#E7ECF5;font-size:0.85rem;line-height:1.65;font-family:Inter,sans-serif;resize:vertical">${letterText}</textarea>
+        <p style="font-size:0.7rem;color:#8892A8;margin-top:0.5rem"><i class="fas fa-circle-info" style="margin-right:4px"></i>AI-generated from your profile — review and edit before sending.</p>
+        <div style="display:flex;gap:0.6rem;margin-top:1rem">
+            <button class="btn btn-indigo" style="flex:1;justify-content:center" onclick="copyCoverLetter()"><i class="fas fa-copy"></i> Copy to Clipboard</button>
+            <button onclick="document.getElementById('coverLetterModal').remove()" style="background:#1B2436;border:1px solid #232C42;color:#E7ECF5;padding:0.6rem 1.2rem;border-radius:10px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">Close</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+function copyCoverLetter() {
+    const textarea = document.getElementById("coverLetterText");
+    textarea.select();
+    navigator.clipboard.writeText(textarea.value)
+        .then(() => toast("Copied to clipboard!"))
+        .catch(() => toast("Could not copy — select and copy manually", true));
+}
+
 async function viewApplicants(jobId, jobTitle) {
     const data = await (await fetch(`${API}/jobs/applicants/${jobId}/${email}`)).json();
     if(data.message){toast(data.message,true);return;}
@@ -1027,7 +1107,7 @@ let _currentApplicants = [];
 const STATUS_STYLES = {
     Applied:     "background:rgba(59,130,246,0.16);color:#7CA8FF",
     Reviewed:    "background:rgba(245,158,11,0.16);color:#FBBF24",
-    Shortlisted: "background:rgba(0,212,255,0.16);color:#4FE0FF",
+    Shortlisted: "background:rgba(56,189,248,0.16);color:#7DD3FC",
     Offered:     "background:rgba(16,185,129,0.16);color:#34D399",
     Rejected:    "background:rgba(239,68,68,0.16);color:#F87171"
 };
@@ -1040,7 +1120,7 @@ function showApplicantsModal(jobId, title, applicants) {
     modal.innerHTML=`
     <div style="background:#131A2A;border:1px solid #232C42;border-radius:20px;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,0.5);max-height:80vh;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-            <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5"><i class="fas fa-users" style="color:#00D4FF;margin-right:8px"></i>Applicants: ${title}</h3>
+            <h3 style="font-size:1rem;font-weight:800;color:#E7ECF5"><i class="fas fa-users" style="color:#38BDF8;margin-right:8px"></i>Applicants: ${title}</h3>
             <button onclick="document.getElementById('applicantsModal').remove()" style="color:#8892A8;font-size:1.3rem;background:none;border:none;cursor:pointer;line-height:1">×</button>
         </div>
         ${_currentApplicants.some(a=>a.matchScore!==null&&a.matchScore!==undefined)?`
@@ -1056,7 +1136,7 @@ function showApplicantsModal(jobId, title, applicants) {
                 const mp = a.matchScore;
                 return `
             <div style="display:flex;align-items:center;gap:0.7rem;padding:0.75rem;border-radius:12px;background:#1B2436;border:1px solid #232C42;margin-bottom:0.5rem;flex-wrap:wrap">
-                <div style="width:38px;height:38px;border-radius:11px;background:rgba(0,212,255,0.14);color:#00D4FF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a.email[0].toUpperCase()}</div>
+                <div style="width:38px;height:38px;border-radius:11px;background:rgba(56,189,248,0.14);color:#38BDF8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;flex-shrink:0">${a.email[0].toUpperCase()}</div>
                 <div style="flex:1;min-width:120px">
                     <p style="font-weight:700;color:#E7ECF5;font-size:0.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.email}</p>
                     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">
@@ -1067,7 +1147,7 @@ function showApplicantsModal(jobId, title, applicants) {
                 <select class="input-field" style="width:auto;padding:0.4rem 0.6rem;font-size:0.75rem" onchange="updateApplicantStatus('${jobId}','${a.email}',this.value,'${title.replace(/'/g,"\\'")}')">
                     ${STATUS_OPTIONS.map(opt=>`<option value="${opt}" ${opt===st?"selected":""}>${opt}</option>`).join("")}
                 </select>
-                <a href="mailto:${a.email}" style="padding:0.35rem 0.6rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope"></i></a>
+                <a href="mailto:${a.email}" style="padding:0.35rem 0.6rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#38BDF8,#7DD3FC);color:#041016;text-decoration:none;white-space:nowrap"><i class="fas fa-envelope"></i></a>
             </div>`;}).join("")}
         </div>
         <p style="color:#8892A8;font-size:0.72rem;text-align:center;margin-top:0.75rem">${applicants.length} of ${_currentApplicants.length} applicant${_currentApplicants.length!==1?"s":""} shown</p>
@@ -1108,7 +1188,7 @@ function renderPostJob(view) {
     view.innerHTML=`
     <div style="max-width:580px;margin:0 auto">
         <div class="card">
-            <p class="section-title"><i class="fas fa-plus-circle" style="color:#4FE0FF;margin-right:6px"></i>Post a New Job</p>
+            <p class="section-title"><i class="fas fa-plus-circle" style="color:#7DD3FC;margin-right:6px"></i>Post a New Job</p>
             <div style="display:flex;flex-direction:column;gap:0.85rem">
                 <input class="input-field" id="jobTitle" placeholder="Job Title *" required>
                 <input class="input-field" id="jobCompany" placeholder="Company Name *" value="${company}" required>
@@ -1227,7 +1307,7 @@ async function loadAnalytics() {
         <!-- Overview cards -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
             <div class="card" style="text-align:center">
-                <p style="font-size:1.6rem;font-weight:800;color:#00D4FF">${data.totalJobs}</p>
+                <p style="font-size:1.6rem;font-weight:800;color:#38BDF8">${data.totalJobs}</p>
                 <p style="font-size:0.72rem;color:#8892A8;margin-top:2px">Jobs Posted</p>
             </div>
             <div class="card" style="text-align:center">
@@ -1298,7 +1378,7 @@ function renderAnalyticsCharts(data) {
     if (statusCtx) {
         const labels = Object.keys(data.statusBreakdown).filter(k => data.statusBreakdown[k] > 0);
         const values = labels.map(k => data.statusBreakdown[k]);
-        const colorMap = { Applied:"#3B82F6", Reviewed:"#F59E0B", Shortlisted:"#00D4FF", Offered:"#10B981", Rejected:"#EF4444" };
+        const colorMap = { Applied:"#3B82F6", Reviewed:"#F59E0B", Shortlisted:"#38BDF8", Offered:"#10B981", Rejected:"#EF4444" };
 
         _statusChartInstance = new Chart(statusCtx, {
             type: "doughnut",
@@ -1318,7 +1398,7 @@ function renderAnalyticsCharts(data) {
             type: "bar",
             data: {
                 labels: data.perJob.map(j => j.title.length > 14 ? j.title.slice(0, 14) + "…" : j.title),
-                datasets: [{ label: "Applicants", data: data.perJob.map(j => j.applicantsCount), backgroundColor: "#00D4FF", borderRadius: 6 }]
+                datasets: [{ label: "Applicants", data: data.perJob.map(j => j.applicantsCount), backgroundColor: "#38BDF8", borderRadius: 6 }]
             },
             options: {
                 plugins: { legend: { display: false } },
@@ -1370,6 +1450,7 @@ function renderMyApplications(view) {
                 </div>
                 <div style="display:flex;gap:0.4rem;flex-shrink:0;flex-wrap:wrap">
                     <button class="btn-sm-outline" onclick="checkJobGap('${j.id}','${j.title}')"><i class="fas fa-chart-bar"></i> Skill Gap</button>
+                    <button class="btn-sm-outline" onclick="generateCoverLetter('${j.id}','${j.title.replace(/'/g,"\\'")}',this)"><i class="fas fa-feather-pointed"></i> Cover Letter</button>
                     <a href="mailto:${j.postedBy}" class="btn btn-slate" style="padding:0.38rem 0.85rem;font-size:0.75rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><i class="fas fa-envelope"></i>Contact</a>
                 </div>
             </div>`;
@@ -1411,25 +1492,41 @@ function renderProfilesGrid(profiles) {
     if(!profiles.length){grid.innerHTML=`<p style="color:#8892A8;text-align:center;margin-top:3rem;grid-column:1/-1">No profiles found.</p>`;return;}
     grid.innerHTML=profiles.map(p=>{
         const skills=p.skills?.[0]?.skill||[], name=p.name?.[0]||"Unknown", pEmail=p.email?.[0]||"", prog=p.program?.[0]||"";
+        const endorsements = p.endorsements || [];
+        const isOwnCard = pEmail === email;
+        const canEndorse = role === "student" && !isOwnCard;
+
+        const skillChip = (s) => {
+            const entry = endorsements.find(e => e.skill === s);
+            const count = entry?.endorsers?.length || 0;
+            const iEndorsed = entry?.endorsers?.includes(email) || false;
+            if (!canEndorse) {
+                return `<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${s}${count?` · ${count}`:""}</span>`;
+            }
+            return `<button onclick="toggleEndorse('${pEmail}','${s.replace(/'/g,"\\'")}',this)"
+                style="display:inline-flex;align-items:center;gap:4px;background:${iEndorsed?"rgba(56,189,248,0.18)":"rgba(59,130,246,0.14)"};color:${iEndorsed?"#7DD3FC":"#7CA8FF"};border:1px solid ${iEndorsed?"rgba(56,189,248,0.4)":"transparent"};padding:0.18rem 0.6rem;border-radius:9999px;font-size:0.7rem;font-weight:700;font-family:'JetBrains Mono',monospace;cursor:pointer">
+                <i class="fas ${iEndorsed?"fa-check-circle":"fa-plus-circle"}" style="font-size:9px"></i>${s}${count?` · ${count}`:""}
+            </button>`;
+        };
+
         return `<div class="card">
             <div style="display:flex;align-items:center;gap:0.85rem;margin-bottom:0.85rem">
                 <div style="width:44px;height:44px;background:linear-gradient(135deg,rgba(59,130,246,0.14),rgba(59,130,246,0.14));color:#7CA8FF;border-radius:13px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem;flex-shrink:0">${name[0].toUpperCase()}</div>
                 <div style="min-width:0">
-                    <p style="font-weight:800;color:#E7ECF5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</p>
+                    <p style="font-weight:800;color:#E7ECF5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${isOwnCard?` <span style="color:#8892A8;font-weight:500;font-size:0.72rem">(you)</span>`:""}</p>
                     <p style="font-size:0.72rem;color:#8892A8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pEmail}</p>
                     ${prog?`<p style="font-size:0.72rem;color:#7C879C">${prog}</p>`:""}
                 </div>
             </div>
             ${p.bio?.[0]?`<p style="font-size:0.77rem;color:#A8B3C7;margin-bottom:0.75rem;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${p.bio[0]}</p>`:""}
-            <div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.85rem">
-                ${skills.slice(0,4).map(s=>`<span class="tag" style="background:rgba(59,130,246,0.14);color:#7CA8FF">${s}</span>`).join("")}
-                ${skills.length>4?`<span class="tag" style="background:#1B2436;color:#7C879C">+${skills.length-4}</span>`:""}
+            <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.85rem">
+                ${skills.map(skillChip).join("")}
                 ${!skills.length?`<span style="font-size:0.75rem;color:#8892A8">No skills listed</span>`:""}
             </div>
             <div style="display:flex;gap:0.4rem;border-top:1px solid #1B2436;padding-top:0.75rem;flex-wrap:wrap">
                 ${p.github?.[0]?`<a href="${p.github[0]}" target="_blank" class="btn-sm-outline"><i class="fab fa-github"></i> GitHub</a>`:""}
                 ${p.linkedin?.[0]?`<a href="${p.linkedin[0]}" target="_blank" class="btn-sm-outline"><i class="fab fa-linkedin"></i> LinkedIn</a>`:""}
-                <a href="mailto:${pEmail}" style="padding:0.38rem 0.8rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:white;text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto"><i class="fas fa-envelope"></i> Contact</a>
+                <a href="mailto:${pEmail}" style="padding:0.38rem 0.8rem;border-radius:8px;font-size:0.72rem;font-weight:700;background:linear-gradient(135deg,#38BDF8,#7DD3FC);color:#041016;text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto"><i class="fas fa-envelope"></i> Contact</a>
             </div>
         </div>`;
     }).join("");
@@ -1480,7 +1577,7 @@ function showGapModal(title, required, missing, userSkills) {
             </div>
         </div>`:""}
         ${!required?.length?`<p style="color:#8892A8;text-align:center;font-size:0.85rem">No specific skills listed.</p>`:""}
-        <button onclick="document.getElementById('gapModal').remove()" style="width:100%;margin-top:1.5rem;background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016;padding:0.75rem;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-family:Inter,sans-serif;font-size:0.88rem">
+        <button onclick="document.getElementById('gapModal').remove()" style="width:100%;margin-top:1.5rem;background:linear-gradient(135deg,#38BDF8,#7DD3FC);color:#041016;padding:0.75rem;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-family:Inter,sans-serif;font-size:0.88rem">
             Close
         </button>
     </div>`;
@@ -1633,7 +1730,7 @@ function positionSuggestionBox(inputEl, box) {
 function renderSuggestions(box, matches, onPick) {
     if (!matches.length) { box.style.display = "none"; return; }
     box.innerHTML = matches.map(s => `
-        <div class="skill-suggest-item" style="padding:0.55rem 0.85rem;font-size:0.82rem;color:#E7ECF5;cursor:pointer;border-bottom:1px solid #1B2436" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">${s}</div>
+        <div class="skill-suggest-item" style="padding:0.55rem 0.85rem;font-size:0.82rem;color:#E7ECF5;cursor:pointer;border-bottom:1px solid #1B2436" onmouseover="this.style.background='rgba(56,189,248,0.1)'" onmouseout="this.style.background='transparent'">${s}</div>
     `).join("");
     [...box.children].forEach((el, i) => {
         el.onmousedown = (e) => { e.preventDefault(); onPick(matches[i]); box.style.display = "none"; };
@@ -1673,4 +1770,11 @@ function attachMultiSkillAutocomplete(inputEl) {
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────────────
-loadModule("home");
+// Reopen whatever page the user was last on instead of always jumping to the
+// Dashboard on refresh — but only if that page still makes sense for their
+// current role (e.g. a recruiter's "analytics" shouldn't restore for a student).
+const studentModules   = ["home","pitch","explore","jobs","myapps","profile","messages","profiles"];
+const recruiterModules = ["home","postjob","myjobs","jobs","analytics","messages","explore","profiles"];
+const allowedModules   = role === "recruiter" ? recruiterModules : studentModules;
+const savedModule      = localStorage.getItem("lastModule");
+loadModule(allowedModules.includes(savedModule) ? savedModule : "home");

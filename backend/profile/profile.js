@@ -50,7 +50,10 @@ function toProfileDTO(p) {
         portfolio:      [p.portfolio || ""],
         resume:         [p.resume || ""],
         profilePicture: [p.profilePicture || "default.png"],
-        skills:         [{ skill: p.skills || [] }]
+        skills:         [{ skill: p.skills || [] }],
+        // flat, simple shape — no need to match legacy XML nesting since
+        // endorsements are a brand-new field with no old data to be compatible with
+        endorsements:   (p.endorsements || []).map(e => ({ skill: e.skill, endorsers: e.endorsers }))
     };
 }
 
@@ -137,6 +140,55 @@ exports.addSkill = async (req, res) => {
     }
 };
 
+// ── TOGGLE SKILL ENDORSEMENT ──────────────────────────────────────────────────
+// Clicking "endorse" once adds the endorser; clicking again removes them
+// (a toggle, same UX pattern as a LinkedIn endorsement or a "like" button).
+exports.toggleEndorsement = async (req, res) => {
+    const { endorserEmail, targetEmail, skill } = req.body;
+    if (!endorserEmail || !targetEmail || !skill) {
+        return res.status(400).json({ message: "Missing fields" });
+    }
+    if (endorserEmail.toLowerCase() === targetEmail.toLowerCase()) {
+        return res.status(400).json({ message: "You can't endorse your own skill" });
+    }
+
+    try {
+        const profile = await Profile.findOne({ email: targetEmail.toLowerCase() });
+        if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+        const normalize = s => s.trim().toLowerCase();
+        const hasSkill = profile.skills.some(s => normalize(s) === normalize(skill));
+        if (!hasSkill) return res.status(400).json({ message: "This person hasn't listed that skill" });
+
+        let entry = profile.endorsements.find(e => normalize(e.skill) === normalize(skill));
+        if (!entry) {
+            entry = { skill, endorsers: [] };
+            profile.endorsements.push(entry);
+        }
+
+        const endorser = endorserEmail.toLowerCase();
+        const idx = entry.endorsers.indexOf(endorser);
+        let endorsed;
+        if (idx === -1) {
+            entry.endorsers.push(endorser); // wasn't endorsed -> endorse it
+            endorsed = true;
+        } else {
+            entry.endorsers.splice(idx, 1); // already endorsed -> remove (toggle off)
+            endorsed = false;
+        }
+
+        // Mongoose doesn't always detect in-place mutations of nested arrays
+        // inside array sub-documents, so mark the path dirty explicitly.
+        profile.markModified("endorsements");
+        await profile.save();
+
+        res.json({ message: "ok", endorsed, count: entry.endorsers.length });
+    } catch (err) {
+        console.error("Endorsement error:", err);
+        res.status(500).json({ message: "Error updating endorsement" });
+    }
+};
+
 // ── UPLOAD RESUME + AUTO-PARSE SKILLS ─────────────────────────────────────────
 exports.uploadResume = async (req, res) => {
     const { email } = req.body;
@@ -183,6 +235,8 @@ exports.deleteSkill = async (req, res) => {
         if (!profile) return res.json({ message: "Profile not found" });
 
         profile.skills = profile.skills.filter(s => s !== skill);
+        // Also drop any endorsements tied to a skill the student no longer lists
+        profile.endorsements = profile.endorsements.filter(e => e.skill !== skill);
         await profile.save();
         res.json({ message: "Skill removed successfully" });
     } catch (err) {

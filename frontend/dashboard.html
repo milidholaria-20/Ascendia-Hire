@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ascendia Hire dashboard — manage jobs, applications, startups, and your profile.">
     <title>Ascendia Hire | Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwQTBFMTciLz4KICA8cGF0aCBkPSJNMTQgNDAgTDI2IDI4IEwzNCAzNiBMNTAgMTgiIHN0cm9rZT0iIzM4QkRGOCIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjE4IiByPSI0IiBmaWxsPSIjMzhCREY4Ii8+Cjwvc3ZnPgo=">
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
@@ -21,10 +23,10 @@
             --text-2:    #A8B3C7;
             --text-mist: #6B7690;
 
-            --cyan:      #00D4FF;
-            --cyan-dark: #00A8CC;
-            --cyan-bg:   rgba(0,212,255,0.13);
-            --cyan-text: #4FE0FF;
+            --cyan:      #38BDF8;
+            --cyan-dark: #0EA5E9;
+            --cyan-bg:   rgba(56,189,248,0.13);
+            --cyan-text: #7DD3FC;
 
             --blue:      #3B82F6;
             --blue-bg:   rgba(59,130,246,0.14);
@@ -77,7 +79,7 @@
             border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
             font-size: 14px; color: #041016;
-            box-shadow: 0 0 18px rgba(0,212,255,0.45);
+            box-shadow: 0 0 18px rgba(56,189,248,0.45);
             flex-shrink: 0;
         }
         .sidebar-logo-text {
@@ -127,7 +129,7 @@
         .nav-btn i { width: 16px; text-align: center; flex-shrink: 0; font-size: 12px; }
         .nav-btn:hover { background: rgba(255,255,255,0.04); color: #D5D9E4; }
         .nav-btn.active {
-            background: rgba(0,212,255,0.12);
+            background: rgba(56,189,248,0.12);
             color: var(--cyan-text);
             font-weight: 700;
             border-left: 2px solid var(--cyan);
@@ -148,8 +150,8 @@
         .sidebar-avatar {
             width: 32px; height: 32px;
             border-radius: 8px;
-            background: rgba(0,212,255,0.14);
-            border: 1px solid rgba(0,212,255,0.32);
+            background: rgba(56,189,248,0.14);
+            border: 1px solid rgba(56,189,248,0.32);
             display: flex; align-items: center; justify-content: center;
             font-weight: 700;
             color: var(--cyan-text);
@@ -321,7 +323,7 @@
             font-family: 'Inter', sans-serif;
             color: var(--text);
         }
-        .input-field:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,212,255,0.12); background: var(--bg-3); }
+        .input-field:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(56,189,248,0.12); background: var(--bg-3); }
         .input-field::placeholder { color: #5B6478; }
 
         .btn {
@@ -337,8 +339,8 @@
             align-items: center;
             gap: 0.35rem;
         }
-        .btn-indigo { background: var(--cyan); color: #041016; box-shadow: 0 2px 14px rgba(0,212,255,0.3); }
-        .btn-indigo:hover { background: var(--cyan-dark); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.42); }
+        .btn-indigo { background: var(--cyan); color: #041016; box-shadow: 0 2px 14px rgba(56,189,248,0.3); }
+        .btn-indigo:hover { background: var(--cyan-dark); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(56,189,248,0.42); }
         .btn-slate  { background: var(--bg-3); color: var(--text); border: 1px solid var(--line); }
         .btn-slate:hover  { border-color: var(--cyan); color: var(--cyan-text); }
         .btn-red    { background: var(--red); color: white; }
@@ -382,13 +384,13 @@
         .msg-bubble { display:flex; gap:10px; margin-bottom:12px; }
         .msg-bubble.self { flex-direction:row-reverse; }
         .msg-avatar { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem;flex-shrink:0; background:rgba(59,130,246,0.14);color:#7CA8FF; }
-        .msg-avatar.self { background:linear-gradient(135deg,#00D4FF,#4FE0FF);color:#041016; }
+        .msg-avatar.self { background:linear-gradient(135deg,#38BDF8,#7DD3FC);color:#041016; }
         .msg-body { display:flex;flex-direction:column;gap:4px;max-width:72%; }
         .msg-body.self { align-items:flex-end; }
         .msg-meta { display:flex;gap:8px;align-items:center;font-size:0.68rem;color:#8892A8; }
         .msg-meta.self { flex-direction:row-reverse; }
         .msg-bubble-text { padding:0.55rem 0.9rem;border-radius:14px;font-size:0.83rem;line-height:1.5; background:#1B2436;color:#E7ECF5;border-radius-top-left:4px; }
-        .msg-bubble-text.self { background:linear-gradient(135deg,#00D4FF,#00A8CC);color:#041016;border-radius-top-right:4px; }
+        .msg-bubble-text.self { background:linear-gradient(135deg,#38BDF8,#0EA5E9);color:#041016;border-radius-top-right:4px; }
 
         /* ── MOBILE ── */
         @media (max-width: 768px) {

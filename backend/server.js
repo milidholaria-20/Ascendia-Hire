@@ -17,6 +17,7 @@ const profile          = require("./profile/profile");
 const startupRoutes    = require("./startup/startup");
 const jobsRoutes       = require("./jobs/jobs");
 const messagesRoutes   = require("./messages/messages");
+const coverLetterRoutes = require("./coverletter/coverletter");
 
 const app    = express();
 const server = http.createServer(app);
@@ -52,6 +53,7 @@ app.get("/profile/:email",           profile.getProfile);
 app.put("/profile/update/:email",    profile.updateProfile);
 app.post("/profile/add-skill",       profile.addSkill);
 app.post("/profile/delete-skill",    profile.deleteSkill);
+app.post("/profile/endorse",         profile.toggleEndorsement);
 app.post("/profile/upload-resume",   profile.uploadMiddleware, profile.uploadResume);
 app.get("/profiles",                 profile.getAllProfiles);
 app.get("/profile/search/:skill",    profile.searchBySkill);
@@ -62,6 +64,7 @@ app.delete("/account/:email",        profile.deleteAccount);
 app.use("/startup", startupRoutes);
 app.use("/jobs",    jobsRoutes);
 app.use("/messages", messagesRoutes);
+app.use("/cover-letter", coverLetterRoutes);
 
 // SPA fallback
 app.get(/(.*)/, (req, res) => {
